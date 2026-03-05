@@ -1,6 +1,6 @@
 # ClawPort
 
-A visual command centre for your AI agent team.
+**[clawport.dev](https://clawport.dev)** | A visual command centre for your AI agent team.
 
 ClawPort is an open-source dashboard for managing, monitoring, and talking directly to your [OpenClaw](https://openclaw.ai) AI agents. Built with Next.js 16, React 19, and a dark command-centre aesthetic with five themes.
 
