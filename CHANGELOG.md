@@ -5,6 +5,49 @@ All notable changes to [clawport-ui](https://www.npmjs.com/package/clawport-ui) 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.6.4] - 2026-03-07
+
+### Fixed
+
+- Workspace path detection now checks current OpenClaw layout (`~/.openclaw/agents/main/workspace`) before falling back to legacy (`~/.openclaw/workspace`). (#3)
+- Cross-origin dev access: added `allowedDevOrigins: ["*"]` to `next.config.mjs` for Tailscale/LAN usage. (#4)
+
+### Changed
+
+- Updated docs (README, SETUP.md, CLAUDE.md) with workspace detection order, global install env fallback, and cross-origin info.
+
+## [0.6.3] - 2026-03-07
+
+### Added
+
+- Slash commands in agent chat: `/clear`, `/help`, `/info`, `/soul`, `/tools`, `/crons`. Client-side only, never sent to gateway.
+- Slash command autocomplete dropdown with keyboard navigation.
+- 35 new tests for slash commands.
+
+### Changed
+
+- Updated CLAUDE.md with slash command docs and "Add a new slash command" guide.
+
+## [0.6.2] - 2026-03-07
+
+### Added
+
+- ClawPort logo (optimized 256x256 PNG) on sidebar, mobile sidebar, npm page, and GitHub README.
+
+### Changed
+
+- README logo uses absolute GitHub raw URL for npm display.
+
+## [0.6.1] - 2026-03-07
+
+### Fixed
+
+- `crypto.randomUUID()` runtime error in non-secure contexts (HTTP, older browsers). Added `generateId()` fallback utility in `lib/id.ts`, replaced all 10 usages across 5 files. (#1)
+
+### Added
+
+- Global install env fallback: `clawport setup` writes to `~/.config/clawport-ui/.env.local` when package directory is not writable. CLI loads from both locations. (PR #6)
+
 ## [0.6.0] - 2026-03-06
 
 ### Added
@@ -198,6 +241,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Memory browser.
 - Next.js 16 App Router with Turbopack.
 
+[0.6.4]: https://github.com/JohnRiceML/clawport-ui/compare/v0.6.3...v0.6.4
+[0.6.3]: https://github.com/JohnRiceML/clawport-ui/compare/v0.6.2...v0.6.3
+[0.6.2]: https://github.com/JohnRiceML/clawport-ui/compare/v0.6.1...v0.6.2
+[0.6.1]: https://github.com/JohnRiceML/clawport-ui/compare/v0.6.0...v0.6.1
 [0.6.0]: https://github.com/JohnRiceML/clawport-ui/compare/v0.5.5...v0.6.0
 [0.5.5]: https://github.com/JohnRiceML/clawport-ui/compare/v0.5.4...v0.5.5
 [0.5.4]: https://github.com/JohnRiceML/clawport-ui/compare/v0.5.3...v0.5.4

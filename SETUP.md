@@ -105,7 +105,9 @@ clawport setup
 npm run setup
 ```
 
-This auto-detects your `WORKSPACE_PATH`, `OPENCLAW_BIN`, and gateway token from your local OpenClaw installation, shows you what it found, and writes `.env.local` after you confirm.
+This auto-detects your `WORKSPACE_PATH` (checks both current and legacy OpenClaw layouts), `OPENCLAW_BIN`, and gateway token from your local OpenClaw installation, shows you what it found, and writes `.env.local` after you confirm.
+
+When installed globally via `npm install -g clawport-ui`, the package directory may not be writable. In that case, setup automatically writes `.env.local` to `~/.config/clawport-ui/` instead. The CLI checks both locations when loading environment variables.
 
 If you prefer to configure manually, copy the template and edit:
 
@@ -119,11 +121,15 @@ Open `.env.local` in your editor and set the three required variables.
 
 The path to your OpenClaw workspace directory. This is where OpenClaw stores agent SOUL files, memory, and other data.
 
-**Default location:** `~/.openclaw/workspace`
+**Default locations (checked in order):**
+1. `~/.openclaw/agents/main/workspace` (current OpenClaw layout)
+2. `~/.openclaw/workspace` (legacy layout)
 
 To verify:
 
 ```bash
+ls ~/.openclaw/agents/main/workspace
+# or for legacy installs:
 ls ~/.openclaw/workspace
 ```
 
@@ -481,6 +487,14 @@ Check the server console for errors like `sendViaOpenClaw execFile error:` or `E
 Voice features require `ELEVENLABS_API_KEY` in your `.env.local`. Without it, voice indicators won't appear on agent profiles.
 
 Audio transcription (speech-to-text) uses Whisper through the OpenClaw gateway and does not require a separate key.
+
+### Cross-origin errors when accessing over LAN / Tailscale
+
+Next.js blocks requests from non-localhost origins by default. ClawPort ships with `allowedDevOrigins: ["*"]` in `next.config.mjs`, so this should work out of the box. If you see cross-origin errors, make sure you're on v0.6.4+.
+
+### .env.local not found after global install
+
+When installed globally, `clawport setup` writes `.env.local` to `~/.config/clawport-ui/` if the package directory isn't writable. The CLI automatically checks both the package directory and `~/.config/clawport-ui/` when loading env vars. If you moved the file manually, re-run `clawport setup`.
 
 ### Port 3000 already in use
 

@@ -122,7 +122,7 @@ All AI calls -- chat, vision, TTS, transcription -- route through the gateway. O
 
 | Variable | Description | How to find it |
 |----------|-------------|----------------|
-| `WORKSPACE_PATH` | Path to your OpenClaw workspace | Default: `~/.openclaw/workspace` |
+| `WORKSPACE_PATH` | Path to your OpenClaw workspace | Default: `~/.openclaw/agents/main/workspace` (or legacy `~/.openclaw/workspace`) |
 | `OPENCLAW_BIN` | Path to the `openclaw` binary | Run `which openclaw` |
 | `OPENCLAW_GATEWAY_TOKEN` | Gateway auth token | Run `openclaw gateway status` |
 
@@ -132,7 +132,7 @@ All AI calls -- chat, vision, TTS, transcription -- route through the gateway. O
 |----------|-------------|
 | `ELEVENLABS_API_KEY` | ElevenLabs API key for voice indicators on agent profiles |
 
-Running `clawport setup` auto-detects all required values and writes `.env.local`. See [SETUP.md](SETUP.md) for manual configuration, agent customization, and troubleshooting.
+Running `clawport setup` auto-detects all required values and writes `.env.local`. When installed globally, if the package directory isn't writable, setup writes to `~/.config/clawport-ui/.env.local` instead. See [SETUP.md](SETUP.md) for manual configuration, agent customization, and troubleshooting.
 
 ---
 
@@ -171,7 +171,7 @@ clawport help     # Show usage
 ## Testing
 
 ```bash
-npm test             # 501 tests across 23 suites (Vitest)
+npm test             # 536 tests across 24 suites (Vitest)
 npx tsc --noEmit     # Type-check (zero errors)
 npx next build       # Production build
 ```
