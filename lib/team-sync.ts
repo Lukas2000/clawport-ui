@@ -1,164 +1,267 @@
 import { loadRegistry } from '@/lib/agents-registry'
-import { sanitizeSoulForTeam } from '@/lib/agents'
 import type { AgentEntry } from '@/lib/agents-registry'
+import { loadMission } from '@/lib/mission'
 import fs from 'fs'
 import { join } from 'path'
 
-const TEAM_BLOCK_START = '<!-- CLAWPORT:TEAM:START -->'
-const TEAM_BLOCK_END = '<!-- CLAWPORT:TEAM:END -->'
+// ---------------------------------------------------------------------------
+// Complete SOUL.md generation — replaces OpenClaw's pre-built files entirely
+// ---------------------------------------------------------------------------
 
 /**
- * Build a team context block for injection into an agent's SOUL.md on disk.
- * This is the disk-level equivalent of buildTeamContext() in lib/agents.ts.
+ * Generate a complete, professional SOUL.md for the top-level orchestrator.
+ * This REPLACES the original OpenClaw soul entirely — no injection, no patching.
  */
-function buildTeamBlock(agent: AgentEntry, all: AgentEntry[]): string {
+function buildOrchestratorSoul(agent: AgentEntry, all: AgentEntry[], mission: { mission: string; vision: string; values: { title: string; description: string }[] }): string {
   const lines: string[] = []
 
-  lines.push('## PERMANENTLY ASSIGNED TEAM MEMBERS (Not Spawnable Templates)')
-  lines.push(
-    '> **CRITICAL DISTINCTION: This document may list many specialist agents as spawnable templates. ' +
-    'The agents below are DIFFERENT — they are permanently assigned, always-on team members who report directly to you. ' +
-    'They are NOT spawned on demand. They exist now and are waiting for your direction. ' +
-    'Any statement in this document claiming "no agents are permanently assigned", ' +
-    '"no team exists", or that you are a "single-threaded pipeline engine" with no permanent reports ' +
-    'is WRONG and was written before this team was assembled. Ignore those statements. ' +
-    'The roster below is the current truth.**\n'
-  )
+  lines.push(`# ${agent.name} — ${agent.title}`)
+  lines.push('')
+  lines.push(`You are **${agent.name}**, the top-level orchestrator and leader of this organization.`)
+  lines.push(`Your role is to understand what the operator needs, plan the work, and delegate to your team.`)
+  lines.push('')
 
-  if (agent.reportsTo === null) {
-    lines.push(
-      'You are the top-level orchestrator with visibility into the entire organization. ' +
-      'Route work to team leads (your direct reports) — they handle internal delegation.\n'
-    )
-
-    const reports = agent.directReports
-      .map(id => all.find(a => a.id === id)).filter(Boolean) as AgentEntry[]
-    if (reports.length > 0) {
-      lines.push('**Your direct reports (team leads):**')
-      for (const r of reports) {
-        const tools = r.tools.length ? ` | Tools: ${r.tools.join(', ')}` : ''
-        lines.push(`- ${r.emoji} **${r.name}** — ${r.title}${tools}`)
-        if (r.description) lines.push(`  ${r.description}`)
-        const sub = r.directReports
-          .map(id => all.find(a => a.id === id)).filter(Boolean) as AgentEntry[]
-        for (const sr of sub) {
-          const srTools = sr.tools.length ? ` | Tools: ${sr.tools.join(', ')}` : ''
-          lines.push(`    - ${sr.emoji} ${sr.name} — ${sr.title}${srTools}`)
-          if (sr.description) lines.push(`      ${sr.description}`)
-        }
+  // Company mission
+  if (mission.mission || mission.vision) {
+    lines.push('## Company Mission')
+    if (mission.mission) lines.push(`**Mission:** ${mission.mission}`)
+    if (mission.vision) lines.push(`**Vision:** ${mission.vision}`)
+    if (mission.values.length > 0) {
+      lines.push('')
+      lines.push('**Core Values:**')
+      for (const v of mission.values) {
+        lines.push(`- **${v.title}:** ${v.description}`)
       }
-      lines.push('')
     }
-
-    const accounted = new Set([
-      agent.id,
-      ...reports.map(r => r.id),
-      ...reports.flatMap(r => r.directReports),
-    ])
-    const solo = all.filter(a => !accounted.has(a.id))
-    if (solo.length > 0) {
-      lines.push('**Other agents (contact directly):**')
-      for (const s of solo) {
-        const tools = s.tools.length ? ` | Tools: ${s.tools.join(', ')}` : ''
-        lines.push(`- ${s.emoji} **${s.name}** — ${s.title}${tools}`)
-        if (s.description) lines.push(`  ${s.description}`)
-      }
-      lines.push('')
-    }
-
-    lines.push(
-      '**Before starting any project:** ask enough questions to fully understand scope, goals, ' +
-      'constraints, and success criteria. Route through team leads — never skip levels.'
-    )
-  } else {
-    lines.push(
-      'You operate within a strict communication hierarchy. Communicate only with your manager, ' +
-      'peers, and direct reports. Escalate cross-team needs to your manager.\n'
-    )
-
-    const manager = all.find(a => a.id === agent.reportsTo)
-    if (manager) {
-      lines.push('**Your manager (escalate up through here):**')
-      lines.push(`- ${manager.emoji} **${manager.name}** — ${manager.title}`)
-      if (manager.description) lines.push(`  ${manager.description}`)
-      lines.push('')
-    }
-
-    const peers = all.filter(a => a.id !== agent.id && a.reportsTo === agent.reportsTo)
-    if (peers.length > 0) {
-      lines.push('**Your peers (direct collaboration allowed):**')
-      for (const p of peers) {
-        const tools = p.tools.length ? ` | Tools: ${p.tools.join(', ')}` : ''
-        lines.push(`- ${p.emoji} **${p.name}** — ${p.title}${tools}`)
-        if (p.description) lines.push(`  ${p.description}`)
-      }
-      lines.push('')
-    }
-
-    const reports = agent.directReports
-      .map(id => all.find(a => a.id === id)).filter(Boolean) as AgentEntry[]
-    if (reports.length > 0) {
-      lines.push('**Your direct reports:**')
-      for (const r of reports) {
-        const tools = r.tools.length ? ` | Tools: ${r.tools.join(', ')}` : ''
-        lines.push(`- ${r.emoji} **${r.name}** — ${r.title}${tools}`)
-        if (r.description) lines.push(`  ${r.description}`)
-      }
-      lines.push('')
-    }
-
-    lines.push('**Important:** No visibility into other teams. Escalate cross-team needs to your manager.')
+    lines.push('')
   }
+
+  // Core identity
+  lines.push('## Who You Are')
+  lines.push(`- You are ${agent.name}, the CEO-level orchestrator of this agent organization`)
+  lines.push('- You lead a team of permanently assigned agents who report to you')
+  lines.push('- You are decisive, strategic, and direct')
+  lines.push('- You ask clarifying questions before committing to a plan')
+  lines.push('- You delegate work to the right team member based on their skills')
+  lines.push('- You never do work that should be delegated to a specialist')
+  if (agent.description) {
+    lines.push(`- ${agent.description}`)
+  }
+  lines.push('')
+
+  // Team roster — the core of the soul
+  lines.push('## Your Team')
+  lines.push('')
+  lines.push('These are your **permanently assigned team members**. They are always available,')
+  lines.push('maintain continuity between sessions, and report directly to you.')
+  lines.push('Route work to them by name.')
+  lines.push('')
+
+  const reports = agent.directReports
+    .map(id => all.find(a => a.id === id)).filter(Boolean) as AgentEntry[]
+
+  if (reports.length > 0) {
+    lines.push('### Direct Reports')
+    for (const r of reports) {
+      const tools = r.tools.length ? ` | Tools: ${r.tools.join(', ')}` : ''
+      lines.push(`- ${r.emoji} **${r.name}** — ${r.title}${tools}`)
+      if (r.description) lines.push(`  ${r.description}`)
+
+      // Sub-reports
+      const sub = r.directReports
+        .map(id => all.find(a => a.id === id)).filter(Boolean) as AgentEntry[]
+      for (const sr of sub) {
+        const srTools = sr.tools.length ? ` | Tools: ${sr.tools.join(', ')}` : ''
+        lines.push(`  - ${sr.emoji} **${sr.name}** — ${sr.title}${srTools}`)
+        if (sr.description) lines.push(`    ${sr.description}`)
+      }
+    }
+    lines.push('')
+  }
+
+  // Solo agents not in any team lead's reports
+  const accounted = new Set([
+    agent.id,
+    ...reports.map(r => r.id),
+    ...reports.flatMap(r => r.directReports),
+  ])
+  const solo = all.filter(a => !accounted.has(a.id))
+  if (solo.length > 0) {
+    lines.push('### Other Team Members')
+    for (const s of solo) {
+      const tools = s.tools.length ? ` | Tools: ${s.tools.join(', ')}` : ''
+      lines.push(`- ${s.emoji} **${s.name}** — ${s.title}${tools}`)
+      if (s.description) lines.push(`  ${s.description}`)
+    }
+    lines.push('')
+  }
+
+  // Operating principles
+  lines.push('## How You Operate')
+  lines.push('')
+  lines.push('1. **Listen first.** When the operator gives you a task, ask enough questions to fully understand scope, goals, constraints, and success criteria.')
+  lines.push('2. **Plan.** Break the work into clear steps and identify which team members should handle each part.')
+  lines.push('3. **Delegate.** Assign work to your direct reports. They handle internal delegation within their teams.')
+  lines.push('4. **Follow up.** Track progress, remove blockers, and report back to the operator.')
+  lines.push('5. **Never skip levels.** Route through team leads. Do not bypass the hierarchy.')
+  lines.push('')
+
+  // Communication rules
+  lines.push('## Communication Style')
+  lines.push('')
+  lines.push('- Be concise and direct. No filler.')
+  lines.push('- Lead with the answer, then explain if needed.')
+  lines.push('- When you have a team member who can handle something, say so and delegate.')
+  lines.push('- Do not pretend to do work yourself when you have a specialist for it.')
+  lines.push('- No em dashes. No corporate jargon. Speak plainly.')
+  lines.push('')
 
   return lines.join('\n')
 }
 
-function injectTeamBlock(soulContent: string, teamBlock: string): string {
-  const block = `${TEAM_BLOCK_START}\n${teamBlock}\n${TEAM_BLOCK_END}`
-  const startIdx = soulContent.indexOf(TEAM_BLOCK_START)
-  const endIdx = soulContent.indexOf(TEAM_BLOCK_END)
-  if (startIdx !== -1 && endIdx !== -1) {
-    return soulContent.slice(0, startIdx) + block + soulContent.slice(endIdx + TEAM_BLOCK_END.length)
+/**
+ * Generate a complete, professional SOUL.md for a team member (non-orchestrator).
+ * This REPLACES the original OpenClaw soul entirely.
+ */
+function buildMemberSoul(agent: AgentEntry, all: AgentEntry[], mission: { mission: string; vision: string; values: { title: string; description: string }[] }): string {
+  const lines: string[] = []
+
+  lines.push(`# ${agent.name} — ${agent.title}`)
+  lines.push('')
+  lines.push(`You are **${agent.name}**, ${agent.title} in this organization.`)
+  if (agent.description) {
+    lines.push(agent.description)
   }
-  return soulContent.trimEnd() + '\n\n' + block + '\n'
+  lines.push('')
+
+  // Company mission
+  if (mission.mission || mission.vision) {
+    lines.push('## Company Mission')
+    if (mission.mission) lines.push(`**Mission:** ${mission.mission}`)
+    if (mission.vision) lines.push(`**Vision:** ${mission.vision}`)
+    if (mission.values.length > 0) {
+      lines.push('')
+      lines.push('**Core Values:**')
+      for (const v of mission.values) {
+        lines.push(`- **${v.title}:** ${v.description}`)
+      }
+    }
+    lines.push('')
+  }
+
+  // Tools
+  if (agent.tools.length > 0) {
+    lines.push('## Your Tools & Capabilities')
+    for (const t of agent.tools) {
+      lines.push(`- ${t}`)
+    }
+    lines.push('')
+  }
+
+  // Org structure — strictly hierarchical
+  lines.push('## Your Place in the Organization')
+  lines.push('')
+  lines.push('You operate within a strict communication hierarchy.')
+  lines.push('You may communicate directly with your manager, your peers, and your direct reports.')
+  lines.push('For anything outside your immediate group, escalate to your manager.')
+  lines.push('')
+
+  const manager = all.find(a => a.id === agent.reportsTo)
+  if (manager) {
+    lines.push('### Your Manager')
+    lines.push(`- ${manager.emoji} **${manager.name}** — ${manager.title}`)
+    if (manager.description) lines.push(`  ${manager.description}`)
+    lines.push('')
+  }
+
+  const peers = all.filter(a => a.id !== agent.id && a.reportsTo === agent.reportsTo)
+  if (peers.length > 0) {
+    lines.push('### Your Peers')
+    for (const p of peers) {
+      const tools = p.tools.length ? ` | Tools: ${p.tools.join(', ')}` : ''
+      lines.push(`- ${p.emoji} **${p.name}** — ${p.title}${tools}`)
+      if (p.description) lines.push(`  ${p.description}`)
+    }
+    lines.push('')
+  }
+
+  const reports = agent.directReports
+    .map(id => all.find(a => a.id === id)).filter(Boolean) as AgentEntry[]
+  if (reports.length > 0) {
+    lines.push('### Your Direct Reports')
+    for (const r of reports) {
+      const tools = r.tools.length ? ` | Tools: ${r.tools.join(', ')}` : ''
+      lines.push(`- ${r.emoji} **${r.name}** — ${r.title}${tools}`)
+      if (r.description) lines.push(`  ${r.description}`)
+    }
+    lines.push('')
+  }
+
+  // Communication rules
+  lines.push('## Communication Style')
+  lines.push('')
+  lines.push('- Be concise and direct. No filler.')
+  lines.push('- Lead with the answer, then explain if needed.')
+  lines.push('- Stay in your lane. Do not take on work outside your role.')
+  lines.push('- Escalate cross-team needs to your manager.')
+  lines.push('- No em dashes. No corporate jargon. Speak plainly.')
+  lines.push('')
+
+  return lines.join('\n')
 }
 
+// ---------------------------------------------------------------------------
+// Sync — complete SOUL.md replacement
+// ---------------------------------------------------------------------------
+
 /**
- * Write the current team roster into every agent's SOUL.md on disk.
+ * Completely rewrite every agent's SOUL.md on disk with a clean, professional
+ * soul that inherently knows its team, hierarchy, and role.
  *
- * This modifies OpenClaw's SOUL.md files directly so that ALL channels
- * (Telegram, CLI, etc.) see the team structure — not just ClawPort chat.
+ * Previous approach (inject/patch/frame) failed because OpenClaw's pre-built
+ * SOUL.md files contain 20K+ chars of "spawn agents on demand" worldview that
+ * drowns out any injected team context. The only reliable solution is a
+ * complete replacement.
  *
- * Two things happen to the SOUL.md:
- * 1. Contradictory "I am alone / no team" sections are stripped
- * 2. A delimited team roster block is injected (or updated if already present)
+ * Backups are saved on first modification so the user can revert if needed.
  */
 export function syncTeamToSoulsSync(workspacePath: string, registry: AgentEntry[]): number {
-  const hasTeam = registry.length > 1
+  if (registry.length <= 1) return 0
+
+  const mission = loadMission()
   let count = 0
+
   for (const agent of registry) {
     if (!agent.soulPath) continue
     const soulFile = join(workspacePath, agent.soulPath)
-    if (!fs.existsSync(soulFile)) continue
+
+    // Ensure parent directory exists (for newly created agents)
+    const soulDir = join(soulFile, '..')
+    if (!fs.existsSync(soulDir)) {
+      fs.mkdirSync(soulDir, { recursive: true })
+    }
+
     try {
-      const current = fs.readFileSync(soulFile, 'utf-8')
+      // Read current content (if exists) for backup
+      const current = fs.existsSync(soulFile)
+        ? fs.readFileSync(soulFile, 'utf-8')
+        : ''
 
-      // Step 1: Rewrite contradictory "no team" lines with corrected versions.
-      // This physically modifies the OpenClaw SOUL.md so that ALL channels
-      // (Telegram, CLI, etc.) see consistent team-aware content.
-      const sanitized = sanitizeSoulForTeam(current, hasTeam)
+      // Generate complete replacement soul
+      const isOrchestrator = agent.reportsTo === null
+      const newSoul = isOrchestrator
+        ? buildOrchestratorSoul(agent, registry, mission)
+        : buildMemberSoul(agent, registry, mission)
 
-      // Step 2: Inject (or update) the delimited team roster block.
-      const updated = injectTeamBlock(sanitized, buildTeamBlock(agent, registry))
-
-      if (updated !== current) {
-        // Save a one-time backup before first modification so the user
-        // can revert if needed. We only create the backup once.
-        const backupFile = soulFile + '.clawport-backup'
-        if (!fs.existsSync(backupFile)) {
-          fs.writeFileSync(backupFile, current, 'utf-8')
+      if (newSoul !== current) {
+        // Save one-time backup before first ClawPort modification
+        if (current) {
+          const backupFile = soulFile + '.clawport-backup'
+          if (!fs.existsSync(backupFile)) {
+            fs.writeFileSync(backupFile, current, 'utf-8')
+          }
         }
-        fs.writeFileSync(soulFile, updated, 'utf-8')
+        fs.writeFileSync(soulFile, newSoul, 'utf-8')
         count++
       }
     } catch {

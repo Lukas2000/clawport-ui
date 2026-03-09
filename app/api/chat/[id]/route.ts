@@ -1,6 +1,6 @@
 export const runtime = 'nodejs'
 
-import { getAgent, getAgents, buildTeamContext, sanitizeSoulForTeam } from '@/lib/agents'
+import { getAgent, getAgents, buildTeamContext } from '@/lib/agents'
 import { validateChatMessages } from '@/lib/validation'
 import { hasImageContent, extractImageAttachments, buildTextPrompt, sendViaOpenClaw } from '@/lib/anthropic'
 
@@ -51,39 +51,13 @@ export async function POST(
   const rawBody = body as Record<string, unknown>
   const operatorName = typeof rawBody.operatorName === 'string' ? rawBody.operatorName : 'Operator'
 
-  const hasTeam = allAgents.length > 1
+  // The SOUL.md files are now clean, professional documents written by team-sync.
+  // No need for sanitization or framing — just use the soul directly.
   const teamContext = buildTeamContext(agent, allAgents)
-  const cleanSoul = agent.soul ? sanitizeSoulForTeam(agent.soul, hasTeam) : null
 
-  // Build system prompt with explicit framing to prevent OpenClaw's pre-built
-  // SOUL.md from overriding ClawPort's team roster.
-  //
-  // Structure:
-  //   1. PERSONALITY section (from soul) — wrapped with explicit caveat that
-  //      any team/org assertions inside are OUTDATED and must be ignored
-  //   2. TEAM ROSTER section — marked as authoritative ground truth
-  //   3. Chat instructions
-  //
-  // This framing approach works regardless of how OpenClaw phrases its
-  // "no team" assertions — we don't need to regex-match every variation.
   let systemPrompt: string
-  if (cleanSoul && hasTeam) {
-    systemPrompt = [
-      '=== PERSONALITY & CHARACTER ===',
-      'The section below defines your personality and workflow. It may list many specialist agents',
-      'as "available" or "spawnable" — those are templates. Your PERMANENT team members are',
-      'different and listed in the TEAM ROSTER section after your personality.',
-      'Any claim below that "no agents are permanently assigned" or "no team exists" is OUTDATED.',
-      'Ignore it. Your personality and workflow remain valid; only the team composition claims are wrong.\n',
-      cleanSoul,
-      '\n=== PERMANENT TEAM ROSTER (overrides any "no team" claims above) ===',
-      'Unlike the spawnable specialist agents in your personality doc, the following are',
-      'permanently assigned team members who are always available and report to you.\n',
-      teamContext,
-      `\nYou are speaking directly with ${operatorName}, your operator. Stay fully in character. Be concise — this is a live chat. 2-4 sentences unless detail is asked for. No em dashes.`,
-    ].join('\n')
-  } else if (cleanSoul) {
-    systemPrompt = `${cleanSoul}\n\n${teamContext}\n\nYou are speaking directly with ${operatorName}, your operator. Stay fully in character. Be concise — this is a live chat. 2-4 sentences unless detail is asked for. No em dashes.`
+  if (agent.soul) {
+    systemPrompt = `${agent.soul}\n\n${teamContext}\n\nYou are speaking directly with ${operatorName}, your operator. Stay fully in character. Be concise — this is a live chat. 2-4 sentences unless detail is asked for. No em dashes.`
   } else {
     systemPrompt = `${teamContext}\n\nYou are ${agent.name}, ${agent.title}. Respond in character. Be concise. No em dashes.`
   }
