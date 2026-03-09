@@ -40,7 +40,7 @@ export default function CalendarPage() {
   }
 
   return (
-    <div style={{ padding: '24px' }}>
+    <div style={{ padding: '24px', height: '100%', overflowY: 'auto' }}>
       <h1 style={{ fontSize: '22px', fontWeight: 700, color: 'var(--text-primary)', marginBottom: '4px' }}>
         Calendar
       </h1>

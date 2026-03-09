@@ -1,8 +1,17 @@
 import type { MemoryFileInfo, MemoryConfig, MemoryStatus, MemoryStats } from '@/lib/types'
 import { readFileSync, existsSync, statSync, readdirSync } from 'fs'
 import { join, basename, dirname } from 'path'
-import { execSync } from 'child_process'
+import { execFile } from 'child_process'
 import { requireEnv } from '@/lib/env'
+
+function execFileAsync(bin: string, args: string[], opts: { encoding: 'utf-8'; timeout: number }): Promise<string> {
+  return new Promise((resolve, reject) => {
+    execFile(bin, args, opts, (err, stdout) => {
+      if (err) reject(err)
+      else resolve(stdout)
+    })
+  })
+}
 
 // ── Date pattern for daily logs ─────────────────────────────────
 
@@ -195,7 +204,7 @@ export function getMemoryConfig(): MemoryConfig {
 
 // ── getMemoryStatus ─────────────────────────────────────────────
 
-export function getMemoryStatus(): MemoryStatus {
+export async function getMemoryStatus(): Promise<MemoryStatus> {
   const defaults: MemoryStatus = {
     indexed: false,
     lastIndexed: null,
@@ -213,11 +222,10 @@ export function getMemoryStatus(): MemoryStatus {
   }
 
   try {
-    const output = execSync(`${bin} memory status --deep`, {
-      timeout: 15000,
+    const output = (await execFileAsync(bin, ['memory', 'status', '--deep'], {
       encoding: 'utf-8',
-      stdio: ['pipe', 'pipe', 'pipe'],
-    }).trim()
+      timeout: 15000,
+    })).trim()
 
     // Try JSON parse first
     try {

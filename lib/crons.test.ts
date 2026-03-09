@@ -1,15 +1,24 @@
 // @vitest-environment node
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 
-const { mockExecSync } = vi.hoisted(() => ({
-  mockExecSync: vi.fn(),
+const { mockExecFile } = vi.hoisted(() => ({
+  mockExecFile: vi.fn(),
 }))
 
 // Mock child_process (Dependency Inversion -- no real CLI calls)
 vi.mock('child_process', () => ({
-  execSync: mockExecSync,
-  default: { execSync: mockExecSync },
+  execFile: mockExecFile,
+  default: { execFile: mockExecFile },
 }))
+
+// Helper: make mockExecFile resolve with a stdout string
+function mockStdout(json: unknown) {
+  mockExecFile.mockImplementation(
+    (_bin: string, _args: string[], _opts: unknown, cb: (err: null, stdout: string, stderr: string) => void) => {
+      cb(null, JSON.stringify(json), '')
+    }
+  )
+}
 
 // Mock agents-registry so getCrons can resolve agent IDs without real fs
 vi.mock('@/lib/agents-registry', () => ({
@@ -51,7 +60,7 @@ describe('getCrons - well-formed data', () => {
         },
       },
     ]
-    mockExecSync.mockReturnValue(JSON.stringify(mockData))
+    mockStdout(mockData)
 
     const crons = await getCrons()
     expect(crons).toHaveLength(1)
@@ -76,7 +85,7 @@ describe('getCrons - well-formed data', () => {
         },
       ],
     }
-    mockExecSync.mockReturnValue(JSON.stringify(mockData))
+    mockStdout(mockData)
 
     const crons = await getCrons()
     expect(crons).toHaveLength(1)
@@ -95,7 +104,7 @@ describe('getCrons - well-formed data', () => {
         },
       ],
     }
-    mockExecSync.mockReturnValue(JSON.stringify(mockData))
+    mockStdout(mockData)
 
     const crons = await getCrons()
     expect(crons).toHaveLength(1)
@@ -116,7 +125,7 @@ describe('getCrons - well-formed data', () => {
       { id: '9', name: 'scribe-memory-sync', schedule: '0 23 * * *', state: {} },
       { id: '10', name: 'lumen-feed', schedule: '0 11 * * *', state: {} },
     ]
-    mockExecSync.mockReturnValue(JSON.stringify(mockData))
+    mockStdout(mockData)
 
     const crons = await getCrons()
     expect(crons).toHaveLength(10)
@@ -141,64 +150,64 @@ describe('getCrons - well-formed data', () => {
 
 describe('getCrons - status mapping', () => {
   function makeCronWithStatus(status: string) {
-    return JSON.stringify([{
+    return [{
       id: 'test',
       name: 'pulse-test',
       schedule: '* * * * *',
       state: { status },
-    }])
+    }]
   }
 
   it('maps "success" to "ok"', async () => {
-    mockExecSync.mockReturnValue(makeCronWithStatus('success'))
+    mockStdout(makeCronWithStatus('success'))
     const crons = await getCrons()
     expect(crons[0].status).toBe('ok')
   })
 
   it('maps "completed" to "ok"', async () => {
-    mockExecSync.mockReturnValue(makeCronWithStatus('completed'))
+    mockStdout(makeCronWithStatus('completed'))
     const crons = await getCrons()
     expect(crons[0].status).toBe('ok')
   })
 
   it('maps "ok" to "ok"', async () => {
-    mockExecSync.mockReturnValue(makeCronWithStatus('ok'))
+    mockStdout(makeCronWithStatus('ok'))
     const crons = await getCrons()
     expect(crons[0].status).toBe('ok')
   })
 
   it('maps "error" to "error"', async () => {
-    mockExecSync.mockReturnValue(makeCronWithStatus('error'))
+    mockStdout(makeCronWithStatus('error'))
     const crons = await getCrons()
     expect(crons[0].status).toBe('error')
   })
 
   it('maps "failed" to "error"', async () => {
-    mockExecSync.mockReturnValue(makeCronWithStatus('failed'))
+    mockStdout(makeCronWithStatus('failed'))
     const crons = await getCrons()
     expect(crons[0].status).toBe('error')
   })
 
   it('maps unknown status to "idle"', async () => {
-    mockExecSync.mockReturnValue(makeCronWithStatus('pending'))
+    mockStdout(makeCronWithStatus('pending'))
     const crons = await getCrons()
     expect(crons[0].status).toBe('idle')
   })
 
   it('maps empty string status to "idle"', async () => {
-    mockExecSync.mockReturnValue(makeCronWithStatus(''))
+    mockStdout(makeCronWithStatus(''))
     const crons = await getCrons()
     expect(crons[0].status).toBe('idle')
   })
 
   it('reads status from top-level when state.status is missing', async () => {
-    mockExecSync.mockReturnValue(JSON.stringify([{
+    mockStdout([{
       id: 'test',
       name: 'pulse-test',
       schedule: '* * * * *',
       status: 'error',
       state: {},
-    }]))
+    }])
     const crons = await getCrons()
     expect(crons[0].status).toBe('error')
   })
@@ -208,46 +217,46 @@ describe('getCrons - status mapping', () => {
 
 describe('getCrons - error and lastError', () => {
   it('captures lastError from state', async () => {
-    mockExecSync.mockReturnValue(JSON.stringify([{
+    mockStdout([{
       id: 'test',
       name: 'pulse-test',
       schedule: '* * * * *',
       state: { status: 'error', lastError: 'timeout after 10s' },
-    }]))
+    }])
     const crons = await getCrons()
     expect(crons[0].lastError).toBe('timeout after 10s')
   })
 
   it('captures error from state.error fallback', async () => {
-    mockExecSync.mockReturnValue(JSON.stringify([{
+    mockStdout([{
       id: 'test',
       name: 'pulse-test',
       schedule: '* * * * *',
       state: { error: 'network failure' },
-    }]))
+    }])
     const crons = await getCrons()
     expect(crons[0].lastError).toBe('network failure')
   })
 
   it('captures lastError from top-level', async () => {
-    mockExecSync.mockReturnValue(JSON.stringify([{
+    mockStdout([{
       id: 'test',
       name: 'pulse-test',
       schedule: '* * * * *',
       state: {},
       lastError: 'out of memory',
-    }]))
+    }])
     const crons = await getCrons()
     expect(crons[0].lastError).toBe('out of memory')
   })
 
   it('sets lastError to null when no error info present', async () => {
-    mockExecSync.mockReturnValue(JSON.stringify([{
+    mockStdout([{
       id: 'test',
       name: 'pulse-test',
       schedule: '* * * * *',
       state: {},
-    }]))
+    }])
     const crons = await getCrons()
     expect(crons[0].lastError).toBeNull()
   })
@@ -257,13 +266,13 @@ describe('getCrons - error and lastError', () => {
 
 describe('getCrons - error propagation', () => {
   it('throws when execSync throws (CLI not installed)', async () => {
-    mockExecSync.mockImplementation(() => { throw new Error('ENOENT') })
+    mockExecFile.mockImplementation((_bin, _args, _opts, cb) => { cb(new Error('ENOENT'), '', '') })
     await expect(getCrons()).rejects.toThrow('Failed to fetch cron jobs')
     await expect(getCrons()).rejects.toThrow('ENOENT')
   })
 
   it('throws for invalid JSON output', async () => {
-    mockExecSync.mockReturnValue('not valid json {{')
+    mockExecFile.mockImplementation((_bin, _args, _opts, cb) => { cb(null, 'not valid json {{', '') })
     await expect(getCrons()).rejects.toThrow('Failed to fetch cron jobs')
   })
 })
@@ -272,12 +281,12 @@ describe('getCrons - error propagation', () => {
 
 describe('getCrons - schedule object handling', () => {
   it('parses schedule object with expression + timezone', async () => {
-    mockExecSync.mockReturnValue(JSON.stringify([{
+    mockStdout([{
       id: 'cron-obj',
       name: 'pulse-daily',
       schedule: { expression: '0 8 * * *', timezone: 'America/Chicago' },
       state: { status: 'ok' },
-    }]))
+    }])
     const crons = await getCrons()
     expect(crons[0].schedule).toBe('0 8 * * *')
     expect(crons[0].timezone).toBe('America/Chicago')
@@ -285,12 +294,12 @@ describe('getCrons - schedule object handling', () => {
   })
 
   it('parses schedule object with cron key', async () => {
-    mockExecSync.mockReturnValue(JSON.stringify([{
+    mockStdout([{
       id: 'cron-obj2',
       name: 'herald-linkedin',
       schedule: { cron: '0 10 * * 1-5' },
       state: { status: 'ok' },
-    }]))
+    }])
     const crons = await getCrons()
     expect(crons[0].schedule).toBe('0 10 * * 1-5')
     expect(crons[0].timezone).toBeNull()
@@ -298,12 +307,12 @@ describe('getCrons - schedule object handling', () => {
   })
 
   it('handles plain string schedule (no regression)', async () => {
-    mockExecSync.mockReturnValue(JSON.stringify([{
+    mockStdout([{
       id: 'cron-str',
       name: 'jarvis-backup',
       schedule: '0 3 * * *',
       state: { status: 'ok' },
-    }]))
+    }])
     const crons = await getCrons()
     expect(crons[0].schedule).toBe('0 3 * * *')
     expect(crons[0].timezone).toBeNull()
@@ -311,11 +320,11 @@ describe('getCrons - schedule object handling', () => {
   })
 
   it('handles missing schedule', async () => {
-    mockExecSync.mockReturnValue(JSON.stringify([{
+    mockStdout([{
       id: 'cron-none',
       name: 'pulse-test',
       state: {},
-    }]))
+    }])
     const crons = await getCrons()
     expect(crons[0].schedule).toBe('')
     expect(crons[0].scheduleDescription).toBe('')
@@ -323,12 +332,12 @@ describe('getCrons - schedule object handling', () => {
   })
 
   it('never produces [object Object]', async () => {
-    mockExecSync.mockReturnValue(JSON.stringify([
+    mockStdout([
       { id: '1', name: 'a', schedule: { expression: '0 8 * * *' }, state: {} },
       { id: '2', name: 'b', schedule: { cron: '* * * * *' }, state: {} },
       { id: '3', name: 'c', schedule: 'plain string', state: {} },
       { id: '4', name: 'd', state: {} },
-    ]))
+    ])
     const crons = await getCrons()
     for (const cron of crons) {
       expect(cron.schedule).not.toContain('[object Object]')
@@ -341,7 +350,7 @@ describe('getCrons - schedule object handling', () => {
 
 describe('getCrons - missing fields defaults', () => {
   it('handles job with all fields missing (defaults to safe values)', async () => {
-    mockExecSync.mockReturnValue(JSON.stringify([{}]))
+    mockStdout([{}])
     const crons = await getCrons()
     expect(crons).toHaveLength(1)
     expect(crons[0].id).toBe('')
@@ -357,44 +366,44 @@ describe('getCrons - missing fields defaults', () => {
   })
 
   it('handles job with no state object', async () => {
-    mockExecSync.mockReturnValue(JSON.stringify([{
+    mockStdout([{
       id: 'x',
       name: 'pulse-test',
       schedule: '0 * * * *',
-    }]))
+    }])
     const crons = await getCrons()
     expect(crons).toHaveLength(1)
     expect(crons[0].status).toBe('idle')
   })
 
   it('uses j.name as id fallback when j.id is missing', async () => {
-    mockExecSync.mockReturnValue(JSON.stringify([{
+    mockStdout([{
       name: 'herald-post',
       schedule: '0 10 * * *',
       state: {},
-    }]))
+    }])
     const crons = await getCrons()
     expect(crons[0].id).toBe('herald-post')
   })
 
   it('returns null agentId for unrecognized name prefix', async () => {
-    mockExecSync.mockReturnValue(JSON.stringify([{
+    mockStdout([{
       id: 'unknown',
       name: 'mystery-cron',
       schedule: '0 0 * * *',
       state: {},
-    }]))
+    }])
     const crons = await getCrons()
     expect(crons[0].agentId).toBeNull()
   })
 
   it('defaults new fields when missing', async () => {
-    mockExecSync.mockReturnValue(JSON.stringify([{
+    mockStdout([{
       id: 'test',
       name: 'pulse-test',
       schedule: '* * * * *',
       state: {},
-    }]))
+    }])
     const crons = await getCrons()
     expect(crons[0].description).toBeNull()
     expect(crons[0].enabled).toBe(true)
@@ -405,13 +414,13 @@ describe('getCrons - missing fields defaults', () => {
   })
 
   it('handles empty array from CLI', async () => {
-    mockExecSync.mockReturnValue(JSON.stringify([]))
+    mockStdout([])
     const crons = await getCrons()
     expect(crons).toEqual([])
   })
 
   it('handles empty object from CLI (no jobs/data key)', async () => {
-    mockExecSync.mockReturnValue(JSON.stringify({}))
+    mockStdout({})
     const crons = await getCrons()
     expect(crons).toEqual([])
   })
@@ -422,37 +431,37 @@ describe('getCrons - missing fields defaults', () => {
 describe('getCrons - date parsing', () => {
   it('converts nextRunAtMs (milliseconds) to ISO string', async () => {
     const ts = 1700000000000
-    mockExecSync.mockReturnValue(JSON.stringify([{
+    mockStdout([{
       id: 'test',
       name: 'pulse-test',
       schedule: '* * * * *',
       state: { nextRunAtMs: ts },
-    }]))
+    }])
     const crons = await getCrons()
     expect(crons[0].nextRun).toBe(new Date(ts).toISOString())
   })
 
   it('converts lastRunAtMs to ISO string', async () => {
     const ts = 1699900000000
-    mockExecSync.mockReturnValue(JSON.stringify([{
+    mockStdout([{
       id: 'test',
       name: 'pulse-test',
       schedule: '* * * * *',
       state: { lastRunAtMs: ts },
-    }]))
+    }])
     const crons = await getCrons()
     expect(crons[0].lastRun).toBe(new Date(ts).toISOString())
   })
 
   it('falls back to top-level nextRunAt', async () => {
     const ts = 1700000000000
-    mockExecSync.mockReturnValue(JSON.stringify([{
+    mockStdout([{
       id: 'test',
       name: 'pulse-test',
       schedule: '* * * * *',
       state: {},
       nextRunAt: ts,
-    }]))
+    }])
     const crons = await getCrons()
     expect(crons[0].nextRun).toBe(new Date(ts).toISOString())
   })
@@ -462,7 +471,7 @@ describe('getCrons - date parsing', () => {
 
 describe('getCrons - actual data format with expr/tz and rich fields', () => {
   it('parses schedule with { kind: "cron", expr, tz }', async () => {
-    mockExecSync.mockReturnValue(JSON.stringify([{
+    mockStdout([{
       id: '0b133350-ca33-42ae-a4b3-9b4d249e4a6b',
       name: 'jarvis-briefing',
       description: 'Daily 6 AM wake-up message for John with image',
@@ -478,7 +487,7 @@ describe('getCrons - actual data format with expr/tz and rich fields', () => {
         nextRunAtMs: 1772539200000,
         lastRunAtMs: 1772452800026,
       },
-    }]))
+    }])
     const crons = await getCrons()
     expect(crons[0].schedule).toBe('0 6 * * *')
     expect(crons[0].timezone).toBe('America/Chicago')
@@ -492,13 +501,13 @@ describe('getCrons - actual data format with expr/tz and rich fields', () => {
   })
 
   it('handles delivery with missing to field', async () => {
-    mockExecSync.mockReturnValue(JSON.stringify([{
+    mockStdout([{
       id: 'test',
       name: 'jarvis-morning-snapshot',
       schedule: { kind: 'cron', expr: '0 5 * * *', tz: 'America/Chicago' },
       delivery: { mode: 'announce', channel: 'discord' },
       state: { lastRunStatus: 'error', consecutiveErrors: 3, lastDeliveryStatus: 'unknown' },
-    }]))
+    }])
     const crons = await getCrons()
     expect(crons[0].delivery).toEqual({ mode: 'announce', channel: 'discord', to: null })
     expect(crons[0].consecutiveErrors).toBe(3)
@@ -506,13 +515,13 @@ describe('getCrons - actual data format with expr/tz and rich fields', () => {
   })
 
   it('handles disabled job', async () => {
-    mockExecSync.mockReturnValue(JSON.stringify([{
+    mockStdout([{
       id: 'disabled',
       name: 'test-disabled',
       enabled: false,
       schedule: '* * * * *',
       state: {},
-    }]))
+    }])
     const crons = await getCrons()
     expect(crons[0].enabled).toBe(false)
   })
@@ -522,10 +531,10 @@ describe('getCrons - actual data format with expr/tz and rich fields', () => {
 
 describe('getCrons - dynamic agent matching', () => {
   it('matches cron name to agent ID by prefix', async () => {
-    mockExecSync.mockReturnValue(JSON.stringify([
+    mockStdout([
       { id: '1', name: 'pulse-daily', schedule: '* * * * *', state: {} },
       { id: '2', name: 'echo-scan', schedule: '* * * * *', state: {} },
-    ]))
+    ])
     const crons = await getCrons()
     expect(crons[0].agentId).toBe('pulse')
     expect(crons[1].agentId).toBe('echo')
@@ -533,25 +542,25 @@ describe('getCrons - dynamic agent matching', () => {
 
   it('matches longer agent ID first (seo-team before seo)', async () => {
     // seo-team is in the mock registry, and should match before a hypothetical "seo" agent
-    mockExecSync.mockReturnValue(JSON.stringify([
+    mockStdout([
       { id: '1', name: 'seo-team-weekly', schedule: '* * * * *', state: {} },
-    ]))
+    ])
     const crons = await getCrons()
     expect(crons[0].agentId).toBe('seo-team')
   })
 
   it('returns null for cron names that do not match any agent', async () => {
-    mockExecSync.mockReturnValue(JSON.stringify([
+    mockStdout([
       { id: '1', name: 'unknown-cron', schedule: '* * * * *', state: {} },
-    ]))
+    ])
     const crons = await getCrons()
     expect(crons[0].agentId).toBeNull()
   })
 
   it('matches exact agent ID (no dash suffix needed)', async () => {
-    mockExecSync.mockReturnValue(JSON.stringify([
+    mockStdout([
       { id: '1', name: 'pulse', schedule: '* * * * *', state: {} },
-    ]))
+    ])
     const crons = await getCrons()
     expect(crons[0].agentId).toBe('pulse')
   })

@@ -21,8 +21,9 @@ const { mockReadFileSync, mockExistsSync, mockStatSync, mockReaddirSync } = vi.h
   mockReaddirSync: vi.fn(),
 }))
 
-const { mockExecSync } = vi.hoisted(() => ({
+const { mockExecSync, mockExecFile } = vi.hoisted(() => ({
   mockExecSync: vi.fn(),
+  mockExecFile: vi.fn(),
 }))
 
 const { bundledAgents } = vi.hoisted(() => ({
@@ -59,7 +60,8 @@ vi.mock('fs', () => ({
 
 vi.mock('child_process', () => ({
   execSync: mockExecSync,
-  default: { execSync: mockExecSync },
+  execFile: mockExecFile,
+  default: { execSync: mockExecSync, execFile: mockExecFile },
 }))
 
 vi.mock('@/lib/agents.json', () => ({
@@ -150,9 +152,9 @@ describe('Fresh user (no OpenClaw installed)', () => {
       expect(() => getMemoryConfig()).toThrow('Missing required environment variable')
     })
 
-    it('getMemoryStatus returns defaults without OPENCLAW_BIN', () => {
+    it('getMemoryStatus returns defaults without OPENCLAW_BIN', async () => {
       vi.stubEnv('OPENCLAW_BIN', '')
-      const status = getMemoryStatus()
+      const status = await getMemoryStatus()
       expect(status.indexed).toBe(false)
       expect(status.raw).toBe('Memory status unavailable')
     })
@@ -251,11 +253,11 @@ describe('Partial user (OpenClaw installed, no ClawPort config)', () => {
   })
 
   describe('memory status — CLI not responding', () => {
-    it('handles CLI command failure gracefully', () => {
-      mockExecSync.mockImplementation(() => {
-        throw new Error('Command not found: openclaw')
+    it('handles CLI command failure gracefully', async () => {
+      mockExecFile.mockImplementation((_bin: string, _args: string[], _opts: unknown, cb: (err: Error, stdout: string, stderr: string) => void) => {
+        cb(new Error('Command not found: openclaw'), '', '')
       })
-      const status = getMemoryStatus()
+      const status = await getMemoryStatus()
       expect(status.indexed).toBe(false)
       expect(status.raw).toBe('Memory status unavailable')
     })
@@ -573,17 +575,19 @@ describe('Existing user (fully configured workspace)', () => {
   })
 
   describe('memory status — CLI returns JSON', () => {
-    it('parses full memory status from CLI', () => {
+    it('parses full memory status from CLI', async () => {
       vi.stubEnv('OPENCLAW_BIN', OPENCLAW_BIN)
-      mockExecSync.mockReturnValue(JSON.stringify({
-        indexed: true,
-        lastIndexed: '2026-03-04T08:00:00Z',
-        totalEntries: 128,
-        vectorAvailable: true,
-        embeddingProvider: 'openai',
-      }))
+      mockExecFile.mockImplementation((_bin: string, _args: string[], _opts: unknown, cb: (err: null, stdout: string, stderr: string) => void) => {
+        cb(null, JSON.stringify({
+          indexed: true,
+          lastIndexed: '2026-03-04T08:00:00Z',
+          totalEntries: 128,
+          vectorAvailable: true,
+          embeddingProvider: 'openai',
+        }), '')
+      })
 
-      const status = getMemoryStatus()
+      const status = await getMemoryStatus()
       expect(status.indexed).toBe(true)
       expect(status.lastIndexed).toBe('2026-03-04T08:00:00Z')
       expect(status.totalEntries).toBe(128)

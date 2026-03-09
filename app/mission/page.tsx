@@ -74,7 +74,7 @@ export default function MissionPage() {
   }
 
   return (
-    <div style={{ padding: '24px', maxWidth: '900px', margin: '0 auto' }}>
+    <div style={{ padding: '24px', maxWidth: '900px', margin: '0 auto', height: '100%', overflowY: 'auto' }}>
       {/* Mission Statement */}
       <section style={{ textAlign: 'center', marginBottom: '48px' }}>
         <div

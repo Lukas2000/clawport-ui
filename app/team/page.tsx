@@ -56,7 +56,7 @@ export default function TeamPage() {
   const groups = buildTeamGroups(agents)
 
   return (
-    <div style={{ padding: '24px', maxWidth: '1100px', margin: '0 auto' }}>
+    <div style={{ padding: '24px', maxWidth: '1100px', margin: '0 auto', height: '100%', overflowY: 'auto' }}>
       {/* Mission Banner */}
       {mission && (
         <div

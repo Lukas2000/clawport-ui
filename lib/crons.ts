@@ -1,6 +1,15 @@
 import { CronJob, CronDelivery } from '@/lib/types'
-import { execSync } from 'child_process'
+import { execFile } from 'child_process'
 import { parseSchedule, describeCron } from './cron-utils'
+
+function execFileAsync(bin: string, args: string[], opts: { encoding: 'utf-8'; timeout: number }): Promise<string> {
+  return new Promise((resolve, reject) => {
+    execFile(bin, args, opts, (err, stdout) => {
+      if (err) reject(err)
+      else resolve(stdout)
+    })
+  })
+}
 import { requireEnv } from '@/lib/env'
 import { loadRegistry } from '@/lib/agents-registry'
 
@@ -20,10 +29,11 @@ function matchAgent(name: string, agentIds: string[]): string | null {
 export async function getCrons(): Promise<CronJob[]> {
   try {
     const openclawBin = requireEnv('OPENCLAW_BIN')
-    const raw = execSync(`${openclawBin} cron list --json`, {
-      encoding: 'utf-8',
-      timeout: 10000,
-    })
+    const raw = await execFileAsync(
+      openclawBin,
+      ['cron', 'list', '--json'],
+      { encoding: 'utf-8', timeout: 10000 }
+    )
 
     const parsed = JSON.parse(raw)
     const jobs: unknown[] = Array.isArray(parsed)

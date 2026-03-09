@@ -9,8 +9,8 @@ const { mockExistsSync, mockReadFileSync, mockStatSync, mockReaddirSync } = vi.h
   mockReaddirSync: vi.fn(),
 }))
 
-const { mockExecSync } = vi.hoisted(() => ({
-  mockExecSync: vi.fn(),
+const { mockExecFile } = vi.hoisted(() => ({
+  mockExecFile: vi.fn(),
 }))
 
 vi.mock('fs', () => ({
@@ -27,8 +27,8 @@ vi.mock('fs', () => ({
 }))
 
 vi.mock('child_process', () => ({
-  execSync: mockExecSync,
-  default: { execSync: mockExecSync },
+  execFile: mockExecFile,
+  default: { execFile: mockExecFile },
 }))
 
 import { getMemoryFiles, getMemoryConfig, getMemoryStatus, computeMemoryStats } from './memory'
@@ -282,16 +282,12 @@ describe('getMemoryStatus', () => {
     vi.stubEnv('OPENCLAW_BIN', '/usr/local/bin/openclaw')
   })
 
-  it('parses valid JSON status', () => {
-    mockExecSync.mockReturnValue(JSON.stringify({
-      indexed: true,
-      lastIndexed: '2026-03-01T12:00:00Z',
-      totalEntries: 42,
-      vectorAvailable: true,
-      embeddingProvider: 'openai',
-    }))
+  it('parses valid JSON status', async () => {
+    mockExecFile.mockImplementation((_bin: string, _args: string[], _opts: unknown, cb: (err: null, stdout: string) => void) => {
+      cb(null, JSON.stringify({ indexed: true, lastIndexed: '2026-03-01T12:00:00Z', totalEntries: 42, vectorAvailable: true, embeddingProvider: 'openai' }))
+    })
 
-    const status = getMemoryStatus()
+    const status = await getMemoryStatus()
     expect(status.indexed).toBe(true)
     expect(status.lastIndexed).toBe('2026-03-01T12:00:00Z')
     expect(status.totalEntries).toBe(42)
@@ -299,34 +295,40 @@ describe('getMemoryStatus', () => {
     expect(status.embeddingProvider).toBe('openai')
   })
 
-  it('falls back to raw text for non-JSON output', () => {
-    mockExecSync.mockReturnValue('Memory index: 42 entries, last indexed 2h ago')
+  it('falls back to raw text for non-JSON output', async () => {
+    mockExecFile.mockImplementation((_bin: string, _args: string[], _opts: unknown, cb: (err: null, stdout: string) => void) => {
+      cb(null, 'Memory index: 42 entries, last indexed 2h ago')
+    })
 
-    const status = getMemoryStatus()
+    const status = await getMemoryStatus()
     expect(status.indexed).toBe(false)
     expect(status.raw).toBe('Memory index: 42 entries, last indexed 2h ago')
   })
 
-  it('handles CLI timeout gracefully', () => {
-    mockExecSync.mockImplementation(() => { throw new Error('ETIMEDOUT') })
+  it('handles CLI timeout gracefully', async () => {
+    mockExecFile.mockImplementation((_bin: string, _args: string[], _opts: unknown, cb: (err: Error) => void) => {
+      cb(new Error('ETIMEDOUT'))
+    })
 
-    const status = getMemoryStatus()
+    const status = await getMemoryStatus()
     expect(status.indexed).toBe(false)
     expect(status.raw).toBe('Memory status unavailable')
   })
 
-  it('handles missing OPENCLAW_BIN gracefully', () => {
+  it('handles missing OPENCLAW_BIN gracefully', async () => {
     vi.stubEnv('OPENCLAW_BIN', '')
 
-    const status = getMemoryStatus()
+    const status = await getMemoryStatus()
     expect(status.indexed).toBe(false)
     expect(status.raw).toBe('Memory status unavailable')
   })
 
-  it('handles missing fields in JSON response', () => {
-    mockExecSync.mockReturnValue(JSON.stringify({ indexed: true }))
+  it('handles missing fields in JSON response', async () => {
+    mockExecFile.mockImplementation((_bin: string, _args: string[], _opts: unknown, cb: (err: null, stdout: string) => void) => {
+      cb(null, JSON.stringify({ indexed: true }))
+    })
 
-    const status = getMemoryStatus()
+    const status = await getMemoryStatus()
     expect(status.indexed).toBe(true)
     expect(status.lastIndexed).toBeNull()
     expect(status.totalEntries).toBeNull()
