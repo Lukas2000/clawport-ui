@@ -254,6 +254,7 @@ export function NavLinks() {
         style={{
           borderTop: '1px solid var(--separator)',
           padding: '10px 16px',
+          flexShrink: 0,
         }}
       >
         <div className="flex items-center gap-2.5">

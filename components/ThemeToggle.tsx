@@ -33,7 +33,7 @@ export function ThemeToggle() {
   );
 
   return (
-    <div style={{ padding: '8px 16px 12px' }}>
+    <div style={{ padding: '8px 16px 12px', flexShrink: 0 }}>
       <div
         style={{
           fontSize: '11px',

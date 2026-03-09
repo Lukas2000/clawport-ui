@@ -24,7 +24,7 @@ export function Sidebar() {
     <>
       {/* Desktop sidebar — hidden on mobile */}
       <aside
-        className="hidden md:flex md:flex-col"
+        className="hidden md:flex md:flex-col overflow-hidden"
         style={{
           width: '220px',
           flexShrink: 0,
@@ -35,7 +35,7 @@ export function Sidebar() {
         }}
       >
         {/* App icon + title */}
-        <div className="px-4 pt-5 pb-3">
+        <div className="px-4 pt-5 pb-3" style={{ flexShrink: 0 }}>
           <div className="flex items-center gap-3">
             {settings.portalIcon ? (
               <img
@@ -89,7 +89,7 @@ export function Sidebar() {
         </div>
 
         {/* Search trigger */}
-        <div className="px-3 pb-2">
+        <div className="px-3 pb-2" style={{ flexShrink: 0 }}>
           <SearchTrigger onClick={openSearch} />
         </div>
 
