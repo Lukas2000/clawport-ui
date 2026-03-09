@@ -31,7 +31,7 @@ export default function RootLayout({
               <Sidebar />
 
               {/* Main content */}
-              <main className="flex-1 overflow-hidden relative">
+              <main className="flex-1 overflow-y-auto relative">
                 {/* Mobile spacer for fixed header */}
                 <div className="md:hidden" style={{ height: '48px', flexShrink: 0 }} />
                 {children}

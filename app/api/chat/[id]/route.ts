@@ -3,6 +3,7 @@ export const runtime = 'nodejs'
 import { getAgent } from '@/lib/agents'
 import { validateChatMessages } from '@/lib/validation'
 import { hasImageContent, extractImageAttachments, buildTextPrompt, sendViaOpenClaw } from '@/lib/anthropic'
+
 import OpenAI from 'openai'
 
 // Route through the OpenClaw gateway — no separate API key needed
