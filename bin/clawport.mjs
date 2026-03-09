@@ -96,15 +96,36 @@ async function checkGateway() {
 }
 
 function findBinary(name) {
-  const cmd = process.platform === 'win32' ? 'where' : 'which'
-  try {
-    return execSync(`${cmd} ${name}`, {
-      encoding: 'utf-8',
-      stdio: ['pipe', 'pipe', 'pipe'],
-    }).trim()
-  } catch {
-    return null
+  if (process.platform === 'win32') {
+    try { return execSync(`where ${name}`, { encoding: 'utf-8', stdio: ['pipe', 'pipe', 'pipe'] }).trim() } catch { return null }
   }
+  try {
+    const result = execSync(`which ${name}`, { encoding: 'utf-8', stdio: ['pipe', 'pipe', 'pipe'] }).trim()
+    if (result) return result
+  } catch { /* fall through */ }
+  // Fallback: known npm global bin locations (nvm, fnm, volta, brew, system)
+  const home = homedir()
+  const directPaths = [
+    join(home, '.volta', 'bin', name),
+    `/usr/local/bin/${name}`,
+    `/opt/homebrew/bin/${name}`,
+    join(home, '.local', 'bin', name),
+    join(home, 'bin', name),
+  ]
+  for (const p of directPaths) {
+    if (existsSync(p)) return p
+  }
+  // Search nvm/fnm versioned node directories
+  for (const base of [join(home, '.nvm', 'versions', 'node'), join(home, '.fnm', 'node-versions')]) {
+    try {
+      const versions = execSync(`ls "${base}"`, { encoding: 'utf-8', stdio: ['pipe', 'pipe', 'pipe'] }).trim().split('\n')
+      for (const v of versions.reverse()) {
+        const bin = join(base, v, 'bin', name)
+        if (existsSync(bin)) return bin
+      }
+    } catch { /* ignore */ }
+  }
+  return null
 }
 
 function checkPort(port) {

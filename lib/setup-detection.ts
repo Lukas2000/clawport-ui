@@ -26,17 +26,41 @@ export function detectWorkspacePath(): string | null {
 
 // ── Binary ────────────────────────────────────────────────────────
 
-/** Find the openclaw binary on PATH. */
+/** Find the openclaw binary on PATH, with fallback to known npm global locations. */
 export function detectOpenClawBin(): string | null {
-  const cmd = process.platform === 'win32' ? 'where' : 'which'
-  try {
-    return execSync(`${cmd} openclaw`, {
-      encoding: 'utf-8',
-      stdio: ['pipe', 'pipe', 'pipe'],
-    }).trim()
-  } catch {
-    return null
+  if (process.platform === 'win32') {
+    try {
+      return execSync('where openclaw', { encoding: 'utf-8', stdio: ['pipe', 'pipe', 'pipe'] }).trim()
+    } catch { return null }
   }
+  // Try which first
+  try {
+    const result = execSync('which openclaw', { encoding: 'utf-8', stdio: ['pipe', 'pipe', 'pipe'] }).trim()
+    if (result) return result
+  } catch { /* fall through */ }
+  // Fallback: known npm global bin locations (nvm, fnm, volta, brew, system)
+  const home = homedir()
+  const directPaths = [
+    join(home, '.volta', 'bin', 'openclaw'),
+    '/usr/local/bin/openclaw',
+    '/opt/homebrew/bin/openclaw',
+    join(home, '.local', 'bin', 'openclaw'),
+    join(home, 'bin', 'openclaw'),
+  ]
+  for (const p of directPaths) {
+    if (existsSync(p)) return p
+  }
+  // Search nvm/fnm versioned node directories
+  for (const base of [join(home, '.nvm', 'versions', 'node'), join(home, '.fnm', 'node-versions')]) {
+    try {
+      const versions = execSync(`ls "${base}"`, { encoding: 'utf-8', stdio: ['pipe', 'pipe', 'pipe'] }).trim().split('\n')
+      for (const v of versions.reverse()) {
+        const bin = join(base, v, 'bin', 'openclaw')
+        if (existsSync(bin)) return bin
+      }
+    } catch { /* ignore */ }
+  }
+  return null
 }
 
 // ── Gateway Token ─────────────────────────────────────────────────

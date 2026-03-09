@@ -13,7 +13,7 @@ export default async function AgentDetailPage({
   const [agent, allAgents, allCrons] = await Promise.all([
     getAgent(id),
     getAgents(),
-    getCrons(),
+    getCrons().catch(() => []),
   ])
 
   if (!agent) {

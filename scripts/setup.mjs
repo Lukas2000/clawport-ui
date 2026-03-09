@@ -43,18 +43,46 @@ function exec(cmd) {
 // ---------------------------------------------------------------------------
 
 function detectWorkspacePath() {
-  // Current OpenClaw layout: ~/.openclaw/agents/main/workspace
-  const agentPath = join(homedir(), '.openclaw', 'agents', 'main', 'workspace')
-  if (existsSync(agentPath)) return agentPath
-  // Legacy layout: ~/.openclaw/workspace
-  const legacyPath = join(homedir(), '.openclaw', 'workspace')
-  if (existsSync(legacyPath)) return legacyPath
+  // Standard OpenClaw layout: ~/.openclaw/workspace
+  const defaultPath = join(homedir(), '.openclaw', 'workspace')
+  if (existsSync(defaultPath)) return defaultPath
   return null
 }
 
 function detectOpenClawBin() {
-  const cmd = process.platform === 'win32' ? 'where' : 'which'
-  return exec(`${cmd} openclaw`)
+  if (process.platform === 'win32') {
+    return exec('where openclaw')
+  }
+  // Try which first (works when openclaw is on PATH)
+  const fromWhich = exec('which openclaw')
+  if (fromWhich) return fromWhich
+  // Fallback: search known npm global bin locations (nvm, fnm, volta, brew, system)
+  const home = homedir()
+  const candidates = [
+    join(home, '.nvm', 'versions', 'node'),
+    join(home, '.fnm', 'node-versions'),
+    join(home, '.volta', 'bin', 'openclaw'),
+    '/usr/local/bin/openclaw',
+    '/opt/homebrew/bin/openclaw',
+    join(home, '.local', 'bin', 'openclaw'),
+    join(home, 'bin', 'openclaw'),
+  ]
+  // Check direct paths first
+  for (const p of candidates) {
+    if (existsSync(p) && !p.endsWith('node')) return p
+  }
+  // Search nvm/fnm node version directories for bin/openclaw
+  for (const base of [join(home, '.nvm', 'versions', 'node'), join(home, '.fnm', 'node-versions')]) {
+    if (!existsSync(base)) continue
+    try {
+      const versions = execSync(`ls "${base}"`, { encoding: 'utf-8' }).trim().split('\n')
+      for (const v of versions.reverse()) { // newest first
+        const bin = join(base, v, 'bin', 'openclaw')
+        if (existsSync(bin)) return bin
+      }
+    } catch { /* ignore */ }
+  }
+  return null
 }
 
 function detectGatewayToken() {
