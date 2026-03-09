@@ -8,23 +8,15 @@ import {
   loadConversations, saveConversations, getOrCreateConversation,
   markRead, type ConversationStore
 } from '@/lib/conversations'
+import { useAgents } from '@/lib/hooks/use-agents'
 
 function MessengerApp() {
   const router = useRouter()
   const searchParams = useSearchParams()
-  const [agents, setAgents] = useState<Agent[]>([])
+  const { data: agents = [], isLoading: loading } = useAgents()
   const [conversations, setConversations] = useState<ConversationStore>({})
   const [activeAgentId, setActiveAgentId] = useState<string | null>(searchParams.get('agent'))
-  const [loading, setLoading] = useState(true)
   const [mobileShowConversation, setMobileShowConversation] = useState(!!searchParams.get('agent'))
-
-  // Load agents
-  useEffect(() => {
-    fetch('/api/agents').then(r => r.json()).then((data: Agent[]) => {
-      setAgents(data)
-      setLoading(false)
-    })
-  }, [])
 
   // Load conversations from localStorage
   useEffect(() => {

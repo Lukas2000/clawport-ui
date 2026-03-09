@@ -238,3 +238,91 @@ export interface LiveLogLine {
   message: string
   raw?: string
 }
+
+// ── Project Types ─────────────────────────────────────────────
+
+export type ProjectStatus = 'planning' | 'active' | 'paused' | 'completed'
+
+export interface Project {
+  id: string
+  name: string
+  description: string
+  status: ProjectStatus
+  priority: 'low' | 'medium' | 'high'
+  leadAgentId: string | null
+  progress: number
+  createdAt: string
+  updatedAt: string
+}
+
+// ── Task Types (SQLite-backed kanban) ─────────────────────────
+
+export type TaskStatus = 'backlog' | 'todo' | 'in-progress' | 'review' | 'done'
+
+export type TaskPriority = 'low' | 'medium' | 'high'
+
+export interface Task {
+  id: string
+  title: string
+  description: string
+  status: TaskStatus
+  priority: TaskPriority
+  projectId: string | null
+  assignedAgentId: string | null
+  assigneeRole: string | null
+  labels: string[]
+  dueDate: string | null
+  recurringCron: string | null
+  workState: 'idle' | 'starting' | 'working' | 'done' | 'failed'
+  workStartedAt: number | null
+  workError: string | null
+  workResult: string | null
+  createdAt: string
+  updatedAt: string
+  completedAt: string | null
+}
+
+export interface TaskComment {
+  id: string
+  taskId: string
+  authorType: 'agent' | 'operator'
+  authorId: string | null
+  content: string
+  createdAt: string
+}
+
+export interface TaskStats {
+  thisWeek: number
+  inProgress: number
+  total: number
+  completionPct: number
+}
+
+// ── Approval Types ────────────────────────────────────────────
+
+export type ApprovalStatus = 'pending' | 'approved' | 'rejected'
+
+export interface Approval {
+  id: string
+  title: string
+  description: string
+  requestedByAgentId: string | null
+  status: ApprovalStatus
+  decisionNote: string | null
+  taskId: string | null
+  createdAt: string
+  decidedAt: string | null
+}
+
+// ── Mission Types ─────────────────────────────────────────────
+
+export interface MissionValue {
+  title: string
+  description: string
+}
+
+export interface MissionData {
+  mission: string
+  vision: string
+  values: MissionValue[]
+}

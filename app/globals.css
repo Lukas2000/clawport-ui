@@ -679,6 +679,18 @@ body {
 }
 
 /* ============================================
+   View Transitions
+   ============================================ */
+
+::view-transition-old(root) {
+  animation: fadeOut 120ms var(--ease-smooth);
+}
+
+::view-transition-new(root) {
+  animation: fadeIn 120ms var(--ease-smooth);
+}
+
+/* ============================================
    Reduced Motion
    ============================================ */
 
