@@ -1,5 +1,6 @@
 import { getAgents } from '@/lib/agents'
 import { createAgent } from '@/lib/agent-crud'
+import { syncTeamToSouls } from '@/lib/team-sync'
 import { apiErrorResponse } from '@/lib/api-error'
 import { getOrFetch, invalidate } from '@/lib/server-cache'
 import { NextResponse } from 'next/server'
@@ -7,6 +8,10 @@ import { NextResponse } from 'next/server'
 export async function GET() {
   try {
     const agents = await getOrFetch('agents', () => getAgents(), 60_000)
+    // Fire-and-forget: sync team roster into SOUL.md files on disk so
+    // Telegram, CLI, and other OpenClaw channels see the current team.
+    // This runs on every load but is fast (skips writes when unchanged).
+    syncTeamToSouls().catch(() => {})
     return NextResponse.json(agents)
   } catch (err) {
     return apiErrorResponse(err, 'Failed to load agents')

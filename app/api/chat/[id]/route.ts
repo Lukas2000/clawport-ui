@@ -1,6 +1,6 @@
 export const runtime = 'nodejs'
 
-import { getAgent, getAgents, buildTeamContext } from '@/lib/agents'
+import { getAgent, getAgents, buildTeamContext, sanitizeSoulForTeam } from '@/lib/agents'
 import { validateChatMessages } from '@/lib/validation'
 import { hasImageContent, extractImageAttachments, buildTextPrompt, sendViaOpenClaw } from '@/lib/anthropic'
 
@@ -51,11 +51,17 @@ export async function POST(
   const rawBody = body as Record<string, unknown>
   const operatorName = typeof rawBody.operatorName === 'string' ? rawBody.operatorName : 'Operator'
 
+  const hasTeam = allAgents.length > 1
   const teamContext = buildTeamContext(agent, allAgents)
-  // Team context comes FIRST — it is ground truth and must override any stale
-  // beliefs in the soul about team composition. Soul provides personality on top.
-  const systemPrompt = agent.soul
-    ? `${teamContext}\n\n${agent.soul}\n\nYou are speaking directly with ${operatorName}, your operator. Stay fully in character. Be concise — this is a live chat. 2-4 sentences unless detail is asked for. No em dashes.`
+  // Strip contradictory "I am alone / no team" sections from the soul.
+  // OpenClaw's pre-built SOUL.md may assert the agent works alone — those
+  // statements are stale once ClawPort manages the team.
+  const cleanSoul = agent.soul ? sanitizeSoulForTeam(agent.soul, hasTeam) : null
+  // Soul (personality) comes first, then team roster LAST.
+  // LLMs give strongest weight to the most recent instructions, so placing
+  // the live roster after the soul ensures it wins any conflict.
+  const systemPrompt = cleanSoul
+    ? `${cleanSoul}\n\n${teamContext}\n\nYou are speaking directly with ${operatorName}, your operator. Stay fully in character. Be concise — this is a live chat. 2-4 sentences unless detail is asked for. No em dashes.`
     : `${teamContext}\n\nYou are ${agent.name}, ${agent.title}. Respond in character. Be concise. No em dashes.`
 
   // When the LATEST user message contains images, use the OpenClaw gateway's

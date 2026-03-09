@@ -43,6 +43,42 @@ export async function getAgent(id: string): Promise<Agent | null> {
 }
 
 /**
+ * Strip sections from a soul/system prompt that contradict team awareness.
+ *
+ * OpenClaw's pre-built SOUL.md files often contain emphatic "I Am Alone",
+ * "There is no team", or similar declarations. When ClawPort injects a live
+ * team roster, these stale assertions confuse the model. This function
+ * removes those contradictory sections so the roster is the single source
+ * of truth.
+ *
+ * The patterns are intentionally broad because we don't control what OpenClaw
+ * puts in SOUL.md — different versions may phrase it differently.
+ */
+export function sanitizeSoulForTeam(soul: string, hasTeam: boolean): string {
+  if (!hasTeam) return soul
+
+  // Remove full markdown sections (heading + all lines until the next heading)
+  // that talk about being alone, having no team, working solo, etc.
+  const sectionPattern = /^(#{1,3})\s+.*?\b(?:alone|no\s+team|solo|just\s+(?:you|us)|single\s+agent|without\s+(?:a\s+)?team)\b.*$(?:\n(?!\1\s|#{1,2}\s).*$)*/gim
+
+  // Remove individual lines (bullets, paragraphs) asserting no team
+  const linePatterns = [
+    /^[-*]\s+.*?\b(?:no\s+(?:other\s+)?agents?\b|there\s+is\s+no\s+team|(?:I|you)\s+(?:am|are|work)\s+alone|no\s+team\s+(?:exist|member)|without\s+(?:a\s+)?team)\b.*$/gim,
+    /^(?![-*#]).*\b(?:There\s+is\s+no\s+team|no\s+other\s+agents?\s+exist|you\s+(?:are|work)\s+alone|I\s+am\s+alone)\b.*$/gim,
+  ]
+
+  let cleaned = soul.replace(sectionPattern, '')
+  for (const pat of linePatterns) {
+    cleaned = cleaned.replace(pat, '')
+  }
+
+  // Collapse multiple blank lines left behind
+  cleaned = cleaned.replace(/\n{3,}/g, '\n\n')
+
+  return cleaned
+}
+
+/**
  * Builds a team context block to inject into an agent's system prompt.
  *
  * Communication is strictly hierarchical: each agent only knows about their
