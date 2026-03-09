@@ -52,9 +52,11 @@ export async function POST(
   const operatorName = typeof rawBody.operatorName === 'string' ? rawBody.operatorName : 'Operator'
 
   const teamContext = buildTeamContext(agent, allAgents)
+  // Team context comes FIRST — it is ground truth and must override any stale
+  // beliefs in the soul about team composition. Soul provides personality on top.
   const systemPrompt = agent.soul
-    ? `${agent.soul}\n\n${teamContext}\nYou are speaking directly with ${operatorName}, your operator. Stay fully in character. Be concise — this is a live chat. 2-4 sentences unless detail is asked for. No em dashes.`
-    : `You are ${agent.name}, ${agent.title}. Respond in character. Be concise. No em dashes.\n\n${teamContext}`
+    ? `${teamContext}\n\n${agent.soul}\n\nYou are speaking directly with ${operatorName}, your operator. Stay fully in character. Be concise — this is a live chat. 2-4 sentences unless detail is asked for. No em dashes.`
+    : `${teamContext}\n\nYou are ${agent.name}, ${agent.title}. Respond in character. Be concise. No em dashes.`
 
   // When the LATEST user message contains images, use the OpenClaw gateway's
   // chat.send pipeline. Only check the last message — older messages with images

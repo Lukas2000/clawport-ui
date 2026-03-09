@@ -2,6 +2,8 @@
 
 import { useEffect, useState, useCallback } from 'react'
 import { renderMarkdown } from '@/lib/sanitize'
+import { TemplatePicker } from '@/components/team/TemplatePicker'
+import type { AgentTemplate } from '@/lib/types'
 
 interface ConfigFileEditorProps {
   agentId: string
@@ -20,6 +22,8 @@ export function ConfigFileEditor({ agentId, filename, label, onSaveAsTemplate }:
   const [saved, setSaved] = useState(false)
   const [showPreview, setShowPreview] = useState(false)
   const [reverting, setReverting] = useState(false)
+  const [showTemplatePicker, setShowTemplatePicker] = useState(false)
+  const [selectedTemplate, setSelectedTemplate] = useState<AgentTemplate | null>(null)
 
   const load = useCallback(() => {
     setLoading(true)
@@ -172,6 +176,23 @@ export function ConfigFileEditor({ agentId, filename, label, onSaveAsTemplate }:
               {reverting ? 'Reverting...' : 'Revert to Default'}
             </button>
           )}
+          {filename === 'SOUL.md' && (
+            <button
+              onClick={() => { setSelectedTemplate(null); setShowTemplatePicker(true) }}
+              style={{
+                padding: '4px 12px',
+                fontSize: 'var(--text-caption1)',
+                fontWeight: 500,
+                borderRadius: 'var(--radius-sm)',
+                border: '1px solid var(--separator)',
+                background: 'transparent',
+                color: 'var(--text-secondary)',
+                cursor: 'pointer',
+              }}
+            >
+              Load Template
+            </button>
+          )}
           {onSaveAsTemplate && filename === 'SOUL.md' && (
             <button
               onClick={onSaveAsTemplate}
@@ -211,6 +232,47 @@ export function ConfigFileEditor({ agentId, filename, label, onSaveAsTemplate }:
 
       {error && (
         <div style={{ fontSize: 'var(--text-caption2)', color: 'var(--system-red)' }}>{error}</div>
+      )}
+
+      {/* Load Template modal */}
+      {showTemplatePicker && (
+        <div
+          style={{ position: 'fixed', inset: 0, zIndex: 1000, display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'rgba(0,0,0,0.5)', backdropFilter: 'blur(4px)' }}
+          onClick={() => setShowTemplatePicker(false)}
+        >
+          <div
+            onClick={(e) => e.stopPropagation()}
+            style={{ background: 'var(--material-thick)', borderRadius: 'var(--radius-xl)', padding: 24, width: '90%', maxWidth: 640, maxHeight: '80vh', display: 'flex', flexDirection: 'column', boxShadow: 'var(--shadow-modal)' }}
+          >
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 }}>
+              <h3 style={{ fontSize: 18, fontWeight: 700, color: 'var(--text-primary)', margin: 0 }}>Load Template</h3>
+              <button onClick={() => setShowTemplatePicker(false)} style={{ background: 'none', border: 'none', color: 'var(--text-secondary)', fontSize: 20, cursor: 'pointer', lineHeight: 1 }}>×</button>
+            </div>
+            <div style={{ flex: 1, overflow: 'auto' }}>
+              <TemplatePicker selected={selectedTemplate} onSelect={setSelectedTemplate} />
+            </div>
+            <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end', marginTop: 16 }}>
+              <button
+                onClick={() => setShowTemplatePicker(false)}
+                style={{ padding: '8px 16px', borderRadius: 8, border: '1px solid var(--separator)', background: 'transparent', color: 'var(--text-secondary)', fontSize: 14, fontWeight: 500, cursor: 'pointer' }}
+              >
+                Cancel
+              </button>
+              <button
+                disabled={!selectedTemplate}
+                onClick={() => {
+                  if (selectedTemplate) {
+                    setContent(selectedTemplate.content)
+                    setShowTemplatePicker(false)
+                  }
+                }}
+                style={{ padding: '8px 18px', borderRadius: 8, border: 'none', background: selectedTemplate ? 'var(--accent)' : 'var(--fill-secondary)', color: selectedTemplate ? '#fff' : 'var(--text-quaternary)', fontSize: 14, fontWeight: 600, cursor: selectedTemplate ? 'pointer' : 'not-allowed' }}
+              >
+                Apply Template
+              </button>
+            </div>
+          </div>
+        </div>
       )}
 
       {/* Editor / Preview */}
