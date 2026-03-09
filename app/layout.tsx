@@ -4,16 +4,7 @@ import { ThemeProvider } from './providers';
 import { SettingsProvider } from './settings-provider';
 import { Sidebar } from '@/components/Sidebar';
 import { DynamicFavicon } from '@/components/DynamicFavicon';
-import dynamic from 'next/dynamic';
-
-const OnboardingWizard = dynamic(
-  () => import('@/components/OnboardingWizard').then(m => ({ default: m.OnboardingWizard })),
-  { ssr: false }
-);
-const LiveStreamWidget = dynamic(
-  () => import('@/components/LiveStreamWidget').then(m => ({ default: m.LiveStreamWidget })),
-  { ssr: false }
-);
+import { LazyWidgets } from '@/components/LazyWidgets';
 
 export const metadata: Metadata = {
   title: 'ClawPort -- Command Centre',
@@ -31,8 +22,7 @@ export default function RootLayout({
         <ThemeProvider>
           <SettingsProvider>
             <DynamicFavicon />
-            <OnboardingWizard />
-            <LiveStreamWidget />
+            <LazyWidgets />
             <div
               className="flex h-screen overflow-hidden"
               style={{ background: 'var(--bg)' }}
