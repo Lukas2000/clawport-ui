@@ -70,6 +70,23 @@ export function TeamPage() {
   const [deleteAgent, setDeleteAgent] = useState<Agent | null>(null)
   const [reassignAgent, setReassignAgent] = useState<Agent | null>(null)
   const [search, setSearch] = useState('')
+  const [syncing, setSyncing] = useState(false)
+  const [syncResult, setSyncResult] = useState<string | null>(null)
+
+  async function syncTeam() {
+    setSyncing(true)
+    setSyncResult(null)
+    try {
+      const res = await fetch('/api/agents/sync-team', { method: 'POST' })
+      const data = await res.json()
+      setSyncResult(data.ok ? `Synced ${data.updated} of ${data.total} SOUL.md files` : 'Sync failed')
+    } catch {
+      setSyncResult('Sync failed')
+    } finally {
+      setSyncing(false)
+      setTimeout(() => setSyncResult(null), 4000)
+    }
+  }
 
   const refresh = useCallback(() => {
     fetch('/api/agents')
@@ -162,24 +179,47 @@ export function TeamPage() {
             {agents.length} agent{agents.length !== 1 ? 's' : ''} across {buildTeamGroups(agents).length} team{buildTeamGroups(agents).length !== 1 ? 's' : ''}
           </p>
         </div>
-        <button
-          onClick={() => setShowAdd(true)}
-          style={{
-            padding: '8px 18px',
-            borderRadius: 8,
-            border: 'none',
-            background: 'var(--accent)',
-            color: 'var(--accent-contrast)',
-            fontSize: 14,
-            fontWeight: 600,
-            cursor: 'pointer',
-            display: 'flex',
-            alignItems: 'center',
-            gap: 6,
-          }}
-        >
-          + Add Agent
-        </button>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+          {syncResult && (
+            <span style={{ fontSize: 12, color: 'var(--text-tertiary)' }}>{syncResult}</span>
+          )}
+          <button
+            onClick={syncTeam}
+            disabled={syncing}
+            title="Write current team roster into every agent's SOUL.md on disk — required for Telegram, CLI, and other channels"
+            style={{
+              padding: '8px 14px',
+              borderRadius: 8,
+              border: '1px solid var(--separator)',
+              background: 'transparent',
+              color: 'var(--text-secondary)',
+              fontSize: 13,
+              fontWeight: 500,
+              cursor: syncing ? 'not-allowed' : 'pointer',
+              opacity: syncing ? 0.6 : 1,
+            }}
+          >
+            {syncing ? 'Syncing...' : '⇄ Sync Team'}
+          </button>
+          <button
+            onClick={() => setShowAdd(true)}
+            style={{
+              padding: '8px 18px',
+              borderRadius: 8,
+              border: 'none',
+              background: 'var(--accent)',
+              color: 'var(--accent-contrast)',
+              fontSize: 14,
+              fontWeight: 600,
+              cursor: 'pointer',
+              display: 'flex',
+              alignItems: 'center',
+              gap: 6,
+            }}
+          >
+            + Add Agent
+          </button>
+        </div>
       </div>
 
       {/* Search */}

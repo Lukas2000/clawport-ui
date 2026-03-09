@@ -16,7 +16,12 @@ function buildTeamBlock(agent: AgentEntry, all: AgentEntry[]): string {
 
   if (agent.reportsTo === null) {
     // Orchestrator: full org view
-    lines.push('## Your Team & Full Org Roster')
+    lines.push('## IMPORTANT: Your Current Team Roster (Live — Overrides All Prior Beliefs)')
+    lines.push(
+      '> **This section reflects the actual current state of your organization. It supersedes any statements in your persona ' +
+      'about being alone, having no team, or being a single agent. Those statements are outdated. ' +
+      'You DO have a team. The agents listed below are real and report to you or work alongside you.**\n'
+    )
     lines.push(
       'You are the top-level orchestrator with visibility into the entire organization. ' +
       'Route work to team leads (your direct reports) — they handle internal delegation.\n'

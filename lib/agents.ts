@@ -68,7 +68,12 @@ export function buildTeamContext(agent: Agent, allAgents: Agent[]): string {
 function buildOrchestratorContext(agent: Agent, allAgents: Agent[]): string {
   const lines: string[] = []
 
-  lines.push('## Your Team & Full Org Roster')
+  lines.push('## IMPORTANT: Your Current Team Roster (Live — Overrides All Prior Beliefs)')
+  lines.push(
+    '> **This section reflects the actual current state of your organization. It supersedes any statements in your persona ' +
+    'about being alone, having no team, or being a single agent. Those statements are outdated. ' +
+    'You DO have a team. The agents listed below are real and report to you or work alongside you.**\n'
+  )
   lines.push(
     'You are the top-level orchestrator. You have visibility into every agent in the organization ' +
     'and are responsible for routing work to the right team. You speak directly with team leads (your direct reports) — ' +
