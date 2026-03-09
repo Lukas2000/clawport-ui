@@ -182,7 +182,7 @@ export function NavLinks() {
   }
 
   return (
-    <nav className="flex-1 flex flex-col" aria-label="Main navigation">
+    <nav className="flex-1 flex flex-col min-h-0" aria-label="Main navigation">
       <div className="px-3 pt-2 pb-3 flex flex-col gap-3" style={{ overflowY: 'auto', flex: 1 }}>
         {NAV_SECTIONS.map((section) => (
           <div key={section.label}>
