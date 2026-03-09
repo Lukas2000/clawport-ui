@@ -94,7 +94,7 @@ export default function TeamPage() {
 
       {/* Team Sections */}
       {groups.map((group, gi) => (
-        <div key={group.label} style={{ marginBottom: '32px' }}>
+        <div key={`${group.label}-${gi}`} style={{ marginBottom: '32px' }}>
           {gi > 0 && (
             <div style={{ display: 'flex', alignItems: 'center', gap: '12px', margin: '24px 0 16px' }}>
               <div style={{ height: '1px', flex: 1, background: 'var(--separator)' }} />

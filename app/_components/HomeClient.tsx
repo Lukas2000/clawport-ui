@@ -74,16 +74,18 @@ const VIEW_OPTIONS: { key: View; label: string }[] = [
   { key: "feed", label: "Feed" },
 ]
 
-interface HomeClientProps {
-  agents: Agent[]
-  crons: CronJob[]
-}
-
-export function HomeClient({ agents, crons }: HomeClientProps) {
+export function HomeClient() {
   const router = useRouter()
+  const [agents, setAgents] = useState<Agent[]>([])
+  const [crons, setCrons] = useState<CronJob[]>([])
   const [selected, setSelected] = useState<Agent | null>(null)
   const [view, setView] = useState<View>("map")
   const closeRef = useRef<HTMLButtonElement>(null)
+
+  useEffect(() => {
+    fetch('/api/agents').then(r => r.json()).then(setAgents).catch(() => {})
+    fetch('/api/crons').then(r => r.json()).then(data => setCrons(data.crons ?? [])).catch(() => {})
+  }, [])
 
   // Focus close button when panel opens
   useEffect(() => {
