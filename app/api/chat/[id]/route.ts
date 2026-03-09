@@ -1,6 +1,6 @@
 export const runtime = 'nodejs'
 
-import { getAgent } from '@/lib/agents'
+import { getAgent, getAgents, buildTeamContext } from '@/lib/agents'
 import { validateChatMessages } from '@/lib/validation'
 import { hasImageContent, extractImageAttachments, buildTextPrompt, sendViaOpenClaw } from '@/lib/anthropic'
 
@@ -19,7 +19,7 @@ export async function POST(
   { params }: { params: Promise<{ id: string }> }
 ) {
   const { id } = await params
-  const agent = await getAgent(id)
+  const [agent, allAgents] = await Promise.all([getAgent(id), getAgents()])
 
   if (!agent) {
     return new Response(JSON.stringify({ error: 'Agent not found' }), {
@@ -51,9 +51,10 @@ export async function POST(
   const rawBody = body as Record<string, unknown>
   const operatorName = typeof rawBody.operatorName === 'string' ? rawBody.operatorName : 'Operator'
 
+  const teamContext = buildTeamContext(agent, allAgents)
   const systemPrompt = agent.soul
-    ? `${agent.soul}\n\nYou are speaking directly with ${operatorName}, your operator. Stay fully in character. Be concise — this is a live chat. 2-4 sentences unless detail is asked for. No em dashes.`
-    : `You are ${agent.name}, ${agent.title}. Respond in character. Be concise. No em dashes.`
+    ? `${agent.soul}\n\n${teamContext}\nYou are speaking directly with ${operatorName}, your operator. Stay fully in character. Be concise — this is a live chat. 2-4 sentences unless detail is asked for. No em dashes.`
+    : `You are ${agent.name}, ${agent.title}. Respond in character. Be concise. No em dashes.\n\n${teamContext}`
 
   // When the LATEST user message contains images, use the OpenClaw gateway's
   // chat.send pipeline. Only check the last message — older messages with images
