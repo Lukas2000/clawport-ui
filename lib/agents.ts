@@ -43,34 +43,73 @@ export async function getAgent(id: string): Promise<Agent | null> {
 }
 
 /**
- * Strip sections from a soul/system prompt that contradict team awareness.
+ * Rewrite lines in a SOUL.md that contradict team awareness.
  *
- * OpenClaw's pre-built SOUL.md files often contain emphatic "I Am Alone",
- * "There is no team", or similar declarations. When ClawPort injects a live
- * team roster, these stale assertions confuse the model. This function
- * removes those contradictory sections so the roster is the single source
- * of truth.
+ * OpenClaw's pre-built SOUL.md files contain assertions like:
+ *   - "No agents are permanently assigned"
+ *   - "No team exists until you create one"
+ *   - "I Am Alone"
+ *   - "single-threaded pipeline engine"
  *
- * The patterns are intentionally broad because we don't control what OpenClaw
- * puts in SOUL.md — different versions may phrase it differently.
+ * Instead of trying to strip these (which leaves gaps and misses variations),
+ * we REPLACE them with corrected versions. This produces a coherent file
+ * that works across all channels (Telegram, CLI, ClawPort chat).
+ *
+ * The replacements are line-level: each matching line is replaced with
+ * a corrected version that acknowledges the team exists.
  */
 export function sanitizeSoulForTeam(soul: string, hasTeam: boolean): string {
   if (!hasTeam) return soul
 
-  // Remove full markdown sections (heading + all lines until the next heading)
-  // that talk about being alone, having no team, working solo, etc.
-  const sectionPattern = /^(#{1,3})\s+.*?\b(?:alone|no\s+team|solo|just\s+(?:you|us)|single\s+agent|without\s+(?:a\s+)?team)\b.*$(?:\n(?!\1\s|#{1,2}\s).*$)*/gim
-
-  // Remove individual lines (bullets, paragraphs) asserting no team
-  const linePatterns = [
-    /^[-*]\s+.*?\b(?:no\s+(?:other\s+)?agents?\b|there\s+is\s+no\s+team|(?:I|you)\s+(?:am|are|work)\s+alone|no\s+team\s+(?:exist|member)|without\s+(?:a\s+)?team)\b.*$/gim,
-    /^(?![-*#]).*\b(?:There\s+is\s+no\s+team|no\s+other\s+agents?\s+exist|you\s+(?:are|work)\s+alone|I\s+am\s+alone)\b.*$/gim,
+  // Line-level replacements: [pattern, replacement]
+  // Each pattern matches a full line. The replacement preserves context
+  // while correcting the "no team" assertion.
+  const replacements: [RegExp, string][] = [
+    // "No agents are permanently assigned" → corrected
+    [
+      /^(.*?)no agents? (?:are|is) permanently assigned(.*?)$/gim,
+      '$1your permanent team members are listed in the TEAM ROSTER section below$2',
+    ],
+    // "No team exists (until you create one)" → corrected
+    [
+      /^(.*?)no team exists(?:\s+until\s+\w+\s+\w+\s+\w+)?(.*?)$/gim,
+      '$1your team roster is defined in the TEAM ROSTER section below$2',
+    ],
+    // "I don't have a team" / "I don't manage teams" → corrected
+    [
+      /^(.*?)(?:I|you)\s+don'?t\s+(?:have|manage)\s+(?:a\s+)?teams?(.*?)$/gim,
+      '$1your permanent team is listed in the TEAM ROSTER section below$2',
+    ],
+    // "No agents report to me/you" → corrected
+    [
+      /^(.*?)no agents? report (?:to (?:me|you)|directly)(.*?)$/gim,
+      '$1your direct reports are listed in the TEAM ROSTER section below$2',
+    ],
+    // "I Am Alone" headings → replaced
+    [
+      /^(#{1,3}\s+).*?\bI\s+Am\s+Alone\b.*$/gim,
+      '$1Your Team (See TEAM ROSTER Below)',
+    ],
+    // "single-threaded pipeline engine" → keep the pipeline part, drop the "single" framing
+    [
+      /^(.*?)a single-threaded pipeline engine(.*?)$/gim,
+      '$1a pipeline engine that orchestrates your permanent team$2',
+    ],
+    // "You spawn all subagents" / "You spawn every sub-agent" → corrected
+    [
+      /^(.*?)you spawn (?:all|every) sub-?agents?(.*?)$/gim,
+      '$1you coordinate your permanent team members and can also spawn specialist agents$2',
+    ],
   ]
 
-  let cleaned = soul.replace(sectionPattern, '')
-  for (const pat of linePatterns) {
-    cleaned = cleaned.replace(pat, '')
+  let cleaned = soul
+  for (const [pattern, replacement] of replacements) {
+    cleaned = cleaned.replace(pattern, replacement)
   }
+
+  // Also remove entire sections with headings explicitly about being alone
+  const sectionPattern = /^(#{1,3})\s+.*?\b(?:alone|just\s+(?:you|us)|working\s+solo)\b.*$(?:\n(?!\1\s|#{1,2}\s).*$)*/gim
+  cleaned = cleaned.replace(sectionPattern, '')
 
   // Collapse multiple blank lines left behind
   cleaned = cleaned.replace(/\n{3,}/g, '\n\n')
@@ -104,16 +143,20 @@ export function buildTeamContext(agent: Agent, allAgents: Agent[]): string {
 function buildOrchestratorContext(agent: Agent, allAgents: Agent[]): string {
   const lines: string[] = []
 
-  lines.push('## IMPORTANT: Your Current Team Roster (Live — Overrides All Prior Beliefs)')
+  lines.push('## PERMANENTLY ASSIGNED TEAM MEMBERS (Not Spawnable Templates)')
   lines.push(
-    '> **This section reflects the actual current state of your organization. It supersedes any statements in your persona ' +
-    'about being alone, having no team, or being a single agent. Those statements are outdated. ' +
-    'You DO have a team. The agents listed below are real and report to you or work alongside you.**\n'
+    '> **CRITICAL DISTINCTION: Your personality document lists many specialist agents as spawnable templates. ' +
+    'The agents below are DIFFERENT — they are permanently assigned, always-on team members who report directly to you. ' +
+    'They are NOT spawned on demand. They exist right now and are waiting for your direction. ' +
+    'Any statement in your personality document claiming "no agents are permanently assigned" or ' +
+    '"no team exists" is WRONG and was written before this team was assembled. ' +
+    'Ignore those statements. This roster is the current truth.**\n'
   )
   lines.push(
-    'You are the top-level orchestrator. You have visibility into every agent in the organization ' +
-    'and are responsible for routing work to the right team. You speak directly with team leads (your direct reports) — ' +
-    'you do not skip levels and contact individual contributors directly unless there is no team lead above them.\n'
+    'You are the top-level orchestrator with a permanent team. ' +
+    'Unlike spawnable specialist agents (listed in your personality doc), these team members are ' +
+    'always available, maintain continuity between sessions, and report directly to you. ' +
+    'Route work to them by name.\n'
   )
 
   // Direct reports (team leads)
@@ -122,7 +165,7 @@ function buildOrchestratorContext(agent: Agent, allAgents: Agent[]): string {
     .filter(Boolean) as Agent[]
 
   if (reports.length > 0) {
-    lines.push('**Your direct reports (team leads you delegate to):**')
+    lines.push('**Your permanent direct reports (always-on, not spawned on demand):**')
     for (const r of reports) {
       const toolList = r.tools.length ? ` | Tools: ${r.tools.join(', ')}` : ''
       lines.push(`- ${r.emoji} **${r.name}** — ${r.title}${toolList}`)

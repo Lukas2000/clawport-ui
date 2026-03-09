@@ -67,6 +67,12 @@ export function createAgent(opts: CreateAgentOpts): AgentEntry {
   const agentDir = join(workspacePath, 'agents', uniqueId)
   fs.mkdirSync(agentDir, { recursive: true })
 
+  // Write IDENTITY.md — OpenClaw uses this to know the agent's name and emoji
+  // across all channels (Telegram, CLI, etc.). Without it, the agent is invisible
+  // to OpenClaw even though the SOUL.md exists.
+  const identityContent = `- **Name:** ${opts.name}\n- **Emoji:** ${opts.emoji}\n`
+  fs.writeFileSync(join(agentDir, 'IDENTITY.md'), identityContent, 'utf-8')
+
   // Write SOUL.md
   const soulContent = opts.soulContent || `# SOUL.md — ${opts.name}
 
@@ -148,6 +154,23 @@ export function updateAgent(agentId: string, updates: UpdateAgentOpts): AgentEnt
   if (updates.color !== undefined) agent.color = updates.color
   if (updates.tools !== undefined) agent.tools = updates.tools
   if (updates.description !== undefined) agent.description = updates.description
+
+  // Sync IDENTITY.md on disk if name or emoji changed — OpenClaw reads this
+  // file to know the agent's display name across Telegram, CLI, etc.
+  if (updates.name !== undefined || updates.emoji !== undefined) {
+    const agentDir = agent.soulPath
+      ? join(workspacePath, agent.soulPath, '..')
+      : join(workspacePath, 'agents', agentId)
+    const identityPath = join(agentDir, 'IDENTITY.md')
+    try {
+      const identityContent = `- **Name:** ${agent.name}\n- **Emoji:** ${agent.emoji}\n`
+      if (fs.existsSync(agentDir)) {
+        fs.writeFileSync(identityPath, identityContent, 'utf-8')
+      }
+    } catch {
+      // Non-fatal
+    }
+  }
 
   // Handle reportsTo change (hierarchy fixup)
   if (updates.reportsTo !== undefined && updates.reportsTo !== agent.reportsTo) {

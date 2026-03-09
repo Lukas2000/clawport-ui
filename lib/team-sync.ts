@@ -14,16 +14,15 @@ const TEAM_BLOCK_END = '<!-- CLAWPORT:TEAM:END -->'
 function buildTeamBlock(agent: AgentEntry, all: AgentEntry[]): string {
   const lines: string[] = []
 
-  lines.push('## CRITICAL OVERRIDE: Your Current Team Roster (Live Data)')
+  lines.push('## PERMANENTLY ASSIGNED TEAM MEMBERS (Not Spawnable Templates)')
   lines.push(
-    '> **MANDATORY: This section is auto-generated from live organizational data. ' +
-    'It is the SINGLE SOURCE OF TRUTH about your team and organization. ' +
-    'ANY statements ANYWHERE ELSE in this document that claim you are alone, ' +
-    'have no team, don\'t manage agents, are a "single-threaded" engine, ' +
-    'or that no agents report to you are COMPLETELY FALSE and OUTDATED. ' +
-    'Those statements were written before your team was assembled. ' +
-    'DISREGARD THEM ENTIRELY. The agents listed below are real, active, ' +
-    'and currently part of your organization.**\n'
+    '> **CRITICAL DISTINCTION: This document may list many specialist agents as spawnable templates. ' +
+    'The agents below are DIFFERENT — they are permanently assigned, always-on team members who report directly to you. ' +
+    'They are NOT spawned on demand. They exist now and are waiting for your direction. ' +
+    'Any statement in this document claiming "no agents are permanently assigned", ' +
+    '"no team exists", or that you are a "single-threaded pipeline engine" with no permanent reports ' +
+    'is WRONG and was written before this team was assembled. Ignore those statements. ' +
+    'The roster below is the current truth.**\n'
   )
 
   if (agent.reportsTo === null) {
@@ -143,9 +142,22 @@ export function syncTeamToSoulsSync(workspacePath: string, registry: AgentEntry[
     if (!fs.existsSync(soulFile)) continue
     try {
       const current = fs.readFileSync(soulFile, 'utf-8')
+
+      // Step 1: Rewrite contradictory "no team" lines with corrected versions.
+      // This physically modifies the OpenClaw SOUL.md so that ALL channels
+      // (Telegram, CLI, etc.) see consistent team-aware content.
       const sanitized = sanitizeSoulForTeam(current, hasTeam)
+
+      // Step 2: Inject (or update) the delimited team roster block.
       const updated = injectTeamBlock(sanitized, buildTeamBlock(agent, registry))
+
       if (updated !== current) {
+        // Save a one-time backup before first modification so the user
+        // can revert if needed. We only create the backup once.
+        const backupFile = soulFile + '.clawport-backup'
+        if (!fs.existsSync(backupFile)) {
+          fs.writeFileSync(backupFile, current, 'utf-8')
+        }
         fs.writeFileSync(soulFile, updated, 'utf-8')
         count++
       }

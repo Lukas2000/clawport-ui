@@ -69,17 +69,16 @@ export async function POST(
   let systemPrompt: string
   if (cleanSoul && hasTeam) {
     systemPrompt = [
-      '=== PERSONALITY & CHARACTER (from agent config) ===',
-      'The following defines your personality, voice, and character traits.',
-      'IMPORTANT: Any statements below about team composition, being alone,',
-      'having no team, not managing agents, or working solo are OUTDATED',
-      'and WRONG. Ignore them completely. Your actual team is defined in',
-      'the TEAM ROSTER section that follows.\n',
+      '=== PERSONALITY & CHARACTER ===',
+      'The section below defines your personality and workflow. It may list many specialist agents',
+      'as "available" or "spawnable" — those are templates. Your PERMANENT team members are',
+      'different and listed in the TEAM ROSTER section after your personality.',
+      'Any claim below that "no agents are permanently assigned" or "no team exists" is OUTDATED.',
+      'Ignore it. Your personality and workflow remain valid; only the team composition claims are wrong.\n',
       cleanSoul,
-      '\n=== AUTHORITATIVE TEAM ROSTER (live, current, overrides everything above) ===',
-      'This is your REAL, CURRENT team. This section is the single source of',
-      'truth about your organization. It was generated from live data and',
-      'supersedes anything stated in the personality section above.\n',
+      '\n=== PERMANENT TEAM ROSTER (overrides any "no team" claims above) ===',
+      'Unlike the spawnable specialist agents in your personality doc, the following are',
+      'permanently assigned team members who are always available and report to you.\n',
       teamContext,
       `\nYou are speaking directly with ${operatorName}, your operator. Stay fully in character. Be concise — this is a live chat. 2-4 sentences unless detail is asked for. No em dashes.`,
     ].join('\n')
