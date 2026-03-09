@@ -4,8 +4,16 @@ import { ThemeProvider } from './providers';
 import { SettingsProvider } from './settings-provider';
 import { Sidebar } from '@/components/Sidebar';
 import { DynamicFavicon } from '@/components/DynamicFavicon';
-import { OnboardingWizard } from '@/components/OnboardingWizard';
-import { LiveStreamWidget } from '@/components/LiveStreamWidget';
+import dynamic from 'next/dynamic';
+
+const OnboardingWizard = dynamic(
+  () => import('@/components/OnboardingWizard').then(m => ({ default: m.OnboardingWizard })),
+  { ssr: false }
+);
+const LiveStreamWidget = dynamic(
+  () => import('@/components/LiveStreamWidget').then(m => ({ default: m.LiveStreamWidget })),
+  { ssr: false }
+);
 
 export const metadata: Metadata = {
   title: 'ClawPort -- Command Centre',
