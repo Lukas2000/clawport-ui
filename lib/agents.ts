@@ -26,8 +26,8 @@ export async function getAgents(): Promise<Agent[]> {
       }
     }
     // Append mission to soul so it's part of the agent's core identity
-    if (missionBlock) {
-      soul = (soul || '') + missionBlock
+    if (missionBlock && soul) {
+      soul = soul + missionBlock
     }
     return {
       ...entry,

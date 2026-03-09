@@ -68,6 +68,10 @@ vi.mock('@/lib/agents.json', () => ({
   default: bundledAgents,
 }))
 
+vi.mock('@/lib/mission', () => ({
+  loadMission: () => ({ mission: '', vision: '', values: [] }),
+}))
+
 // ── Imports (after mocks) ─────────────────────────────────────────
 
 import { getAgents } from './agents'

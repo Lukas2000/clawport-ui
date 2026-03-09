@@ -127,6 +127,11 @@ vi.mock('@/lib/agents.json', () => ({
   default: bundledAgents,
 }))
 
+// Mock mission to return empty so it doesn't append to souls in tests
+vi.mock('@/lib/mission', () => ({
+  loadMission: () => ({ mission: '', vision: '', values: [] }),
+}))
+
 // We need to import AFTER mocks are set up
 import { getAgents, getAgent } from './agents'
 import { parseSoulHeading, parseIdentity } from './agents-registry'

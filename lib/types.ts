@@ -314,6 +314,55 @@ export interface Approval {
   decidedAt: string | null
 }
 
+// ── Agent Management Types ────────────────────────────────────
+
+export interface AgentConfigFile {
+  filename: string
+  label: string
+  description: string
+  category: 'identity' | 'behavior' | 'workflow'
+  content: string
+  lastModified: string | null
+  isCustom: boolean
+}
+
+export interface CreateAgentRequest {
+  name: string
+  title: string
+  emoji: string
+  color: string
+  reportsTo: string | null
+  tools: string[]
+  description: string
+  templateId?: string
+  soulContent?: string
+}
+
+export interface UpdateAgentRequest {
+  name?: string
+  title?: string
+  emoji?: string
+  color?: string
+  tools?: string[]
+  description?: string
+  reportsTo?: string | null
+}
+
+export interface AgentTemplate {
+  slug: string
+  category: string
+  name: string
+  description: string
+  color: string
+  content: string
+}
+
+export interface TemplateCategory {
+  slug: string
+  label: string
+  count: number
+}
+
 // ── Mission Types ─────────────────────────────────────────────
 
 export interface MissionValue {

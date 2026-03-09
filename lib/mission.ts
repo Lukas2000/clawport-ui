@@ -13,14 +13,15 @@ const DEFAULT_MISSION: MissionData = {
   ],
 }
 
-function getMissionPath(): string {
-  const workspace = requireEnv('WORKSPACE_PATH')
+function getMissionPath(): string | null {
+  const workspace = process.env.WORKSPACE_PATH
+  if (!workspace) return null
   return path.join(workspace, 'clawport', 'mission.json')
 }
 
 export function loadMission(): MissionData {
   const filePath = getMissionPath()
-  if (!fs.existsSync(filePath)) return DEFAULT_MISSION
+  if (!filePath || !fs.existsSync(filePath)) return DEFAULT_MISSION
   try {
     const raw = fs.readFileSync(filePath, 'utf-8')
     const data = JSON.parse(raw) as Partial<MissionData>
@@ -36,6 +37,7 @@ export function loadMission(): MissionData {
 
 export function saveMission(data: MissionData): void {
   const filePath = getMissionPath()
+  if (!filePath) throw new Error('WORKSPACE_PATH is not set')
   const dir = path.dirname(filePath)
   if (!fs.existsSync(dir)) {
     fs.mkdirSync(dir, { recursive: true })

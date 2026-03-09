@@ -6,7 +6,10 @@ import { Upload, X } from "lucide-react"
 import type { Agent, CronJob } from "@/lib/types"
 import { AgentAvatar } from "@/components/AgentAvatar"
 import { useSettings } from "@/app/settings-provider"
-import { SoulEditor } from "@/components/agents/SoulEditor"
+import { ConfigFileEditor } from "@/components/agents/ConfigFileEditor"
+import { ConfigFileSidebar } from "@/components/agents/ConfigFileSidebar"
+import { InlineEditField } from "@/components/agents/InlineEditField"
+import { SaveTemplateModal } from "@/components/agents/SaveTemplateModal"
 
 function resizeImage(file: File, maxSize: number): Promise<string> {
   return new Promise((resolve, reject) => {
@@ -194,16 +197,35 @@ interface AgentDetailClientProps {
   crons: CronJob[]
 }
 
-export function AgentDetailClient({ agent, allAgents, crons }: AgentDetailClientProps) {
+export function AgentDetailClient({ agent: initialAgent, allAgents, crons }: AgentDetailClientProps) {
   const router = useRouter()
   const { settings, setAgentOverride } = useSettings()
   const fileInputRef = useRef<HTMLInputElement>(null)
-  const [activeTab, setActiveTab] = useState<'profile' | 'editor'>('profile')
+  const [activeTab, setActiveTab] = useState<'profile' | 'config'>('profile')
+  const [activeConfigFile, setActiveConfigFile] = useState('SOUL.md')
+  const [showSaveTemplate, setShowSaveTemplate] = useState(false)
+  const [agent, setAgent] = useState(initialAgent)
 
   async function handleImageUpload(file: File) {
     try {
       const dataUrl = await resizeImage(file, 200)
       setAgentOverride(agent.id, { profileImage: dataUrl })
+    } catch {
+      // silently fail
+    }
+  }
+
+  async function patchAgent(updates: Record<string, unknown>) {
+    try {
+      const res = await fetch(`/api/agents/${agent.id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(updates),
+      })
+      if (res.ok) {
+        const updated = await res.json()
+        setAgent((prev) => ({ ...prev, ...updated }))
+      }
     } catch {
       // silently fail
     }
@@ -278,7 +300,7 @@ export function AgentDetailClient({ agent, allAgents, crons }: AgentDetailClient
           background: "var(--material-regular)",
         }}
       >
-        {(["profile", "editor"] as const).map((tab) => (
+        {(["profile", "config"] as const).map((tab) => (
           <button
             key={tab}
             onClick={() => setActiveTab(tab)}
@@ -294,23 +316,49 @@ export function AgentDetailClient({ agent, allAgents, crons }: AgentDetailClient
               marginBottom: "-1px",
             }}
           >
-            {tab === "profile" ? "Profile" : "SOUL.md Editor"}
+            {tab === "profile" ? "Profile" : "Config Files"}
           </button>
         ))}
       </div>
 
-      {/* ── Editor Tab ── */}
-      {activeTab === "editor" && (
+      {/* ── Config Files Tab ── */}
+      {activeTab === "config" && (
         <div
           style={{
-            maxWidth: 720,
+            display: "flex",
+            maxWidth: 960,
             margin: "0 auto",
             padding: "var(--space-6)",
             width: "100%",
+            gap: "var(--space-4)",
           }}
         >
-          <SoulEditor agentId={agent.id} />
+          <div style={{ width: 200, flexShrink: 0 }}>
+            <ConfigFileSidebar
+              agentId={agent.id}
+              activeFile={activeConfigFile}
+              onSelect={setActiveConfigFile}
+            />
+          </div>
+          <div style={{ flex: 1, minWidth: 0 }}>
+            <ConfigFileEditor
+              key={activeConfigFile}
+              agentId={agent.id}
+              filename={activeConfigFile}
+              label={activeConfigFile}
+              onSaveAsTemplate={() => setShowSaveTemplate(true)}
+            />
+          </div>
         </div>
+      )}
+
+      {showSaveTemplate && (
+        <SaveTemplateModal
+          agentName={agent.name}
+          content={agent.soul || ""}
+          onClose={() => setShowSaveTemplate(false)}
+          onSaved={() => setShowSaveTemplate(false)}
+        />
       )}
 
       {/* ── Content (Profile Tab) ── */}
@@ -392,27 +440,22 @@ export function AgentDetailClient({ agent, allAgents, crons }: AgentDetailClient
             />
           </div>
           <div>
-            <h1
-              style={{
-                fontSize: "var(--text-title1)",
-                fontWeight: "var(--weight-bold)",
-                letterSpacing: "-0.5px",
-                color: "var(--text-primary)",
-                margin: 0,
-                lineHeight: 1.2,
-              }}
-            >
-              {agent.name}
-            </h1>
-            <p
-              style={{
-                fontSize: "var(--text-subheadline)",
-                color: "var(--text-secondary)",
-                margin: "2px 0 0",
-              }}
-            >
-              {agent.title}
-            </p>
+            <InlineEditField
+              value={agent.name}
+              onSave={async (v) => patchAgent({ name: v })}
+              fontSize="var(--text-title1)"
+              fontWeight={700}
+              color="var(--text-primary)"
+              placeholder="Agent name"
+            />
+            <InlineEditField
+              value={agent.title}
+              onSave={async (v) => patchAgent({ title: v })}
+              fontSize="var(--text-subheadline)"
+              fontWeight={500}
+              color="var(--text-secondary)"
+              placeholder="Role / title"
+            />
             {/* Color swatch */}
             <div
               style={{
@@ -432,16 +475,15 @@ export function AgentDetailClient({ agent, allAgents, crons }: AgentDetailClient
           <div className="section-header" style={{ marginBottom: "var(--space-3)" }}>
             About
           </div>
-          <p
-            style={{
-              fontSize: "var(--text-body)",
-              lineHeight: 1.65,
-              color: "var(--text-secondary)",
-              margin: 0,
-            }}
-          >
-            {agent.description}
-          </p>
+          <InlineEditField
+            value={agent.description}
+            onSave={async (v) => patchAgent({ description: v })}
+            fontSize="var(--text-body)"
+            fontWeight={400}
+            color="var(--text-secondary)"
+            placeholder="Add a description..."
+            multiline
+          />
         </Card>
 
         {/* ── Two-column: Tools + Hierarchy ── */}
