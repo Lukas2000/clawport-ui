@@ -53,16 +53,41 @@ export async function POST(
 
   const hasTeam = allAgents.length > 1
   const teamContext = buildTeamContext(agent, allAgents)
-  // Strip contradictory "I am alone / no team" sections from the soul.
-  // OpenClaw's pre-built SOUL.md may assert the agent works alone — those
-  // statements are stale once ClawPort manages the team.
   const cleanSoul = agent.soul ? sanitizeSoulForTeam(agent.soul, hasTeam) : null
-  // Soul (personality) comes first, then team roster LAST.
-  // LLMs give strongest weight to the most recent instructions, so placing
-  // the live roster after the soul ensures it wins any conflict.
-  const systemPrompt = cleanSoul
-    ? `${cleanSoul}\n\n${teamContext}\n\nYou are speaking directly with ${operatorName}, your operator. Stay fully in character. Be concise — this is a live chat. 2-4 sentences unless detail is asked for. No em dashes.`
-    : `${teamContext}\n\nYou are ${agent.name}, ${agent.title}. Respond in character. Be concise. No em dashes.`
+
+  // Build system prompt with explicit framing to prevent OpenClaw's pre-built
+  // SOUL.md from overriding ClawPort's team roster.
+  //
+  // Structure:
+  //   1. PERSONALITY section (from soul) — wrapped with explicit caveat that
+  //      any team/org assertions inside are OUTDATED and must be ignored
+  //   2. TEAM ROSTER section — marked as authoritative ground truth
+  //   3. Chat instructions
+  //
+  // This framing approach works regardless of how OpenClaw phrases its
+  // "no team" assertions — we don't need to regex-match every variation.
+  let systemPrompt: string
+  if (cleanSoul && hasTeam) {
+    systemPrompt = [
+      '=== PERSONALITY & CHARACTER (from agent config) ===',
+      'The following defines your personality, voice, and character traits.',
+      'IMPORTANT: Any statements below about team composition, being alone,',
+      'having no team, not managing agents, or working solo are OUTDATED',
+      'and WRONG. Ignore them completely. Your actual team is defined in',
+      'the TEAM ROSTER section that follows.\n',
+      cleanSoul,
+      '\n=== AUTHORITATIVE TEAM ROSTER (live, current, overrides everything above) ===',
+      'This is your REAL, CURRENT team. This section is the single source of',
+      'truth about your organization. It was generated from live data and',
+      'supersedes anything stated in the personality section above.\n',
+      teamContext,
+      `\nYou are speaking directly with ${operatorName}, your operator. Stay fully in character. Be concise — this is a live chat. 2-4 sentences unless detail is asked for. No em dashes.`,
+    ].join('\n')
+  } else if (cleanSoul) {
+    systemPrompt = `${cleanSoul}\n\n${teamContext}\n\nYou are speaking directly with ${operatorName}, your operator. Stay fully in character. Be concise — this is a live chat. 2-4 sentences unless detail is asked for. No em dashes.`
+  } else {
+    systemPrompt = `${teamContext}\n\nYou are ${agent.name}, ${agent.title}. Respond in character. Be concise. No em dashes.`
+  }
 
   // When the LATEST user message contains images, use the OpenClaw gateway's
   // chat.send pipeline. Only check the last message — older messages with images

@@ -14,12 +14,16 @@ const TEAM_BLOCK_END = '<!-- CLAWPORT:TEAM:END -->'
 function buildTeamBlock(agent: AgentEntry, all: AgentEntry[]): string {
   const lines: string[] = []
 
-  lines.push('## IMPORTANT: Your Current Team Roster (Live — Overrides All Prior Beliefs)')
+  lines.push('## CRITICAL OVERRIDE: Your Current Team Roster (Live Data)')
   lines.push(
-    '> **This section is injected by ClawPort and reflects the actual current state ' +
-    'of your organization. It supersedes ANY prior statements in this document about ' +
-    'being alone, having no team, being a single agent, or working solo. Those statements ' +
-    'are outdated. You DO have a team. The agents listed below are real.**\n'
+    '> **MANDATORY: This section is auto-generated from live organizational data. ' +
+    'It is the SINGLE SOURCE OF TRUTH about your team and organization. ' +
+    'ANY statements ANYWHERE ELSE in this document that claim you are alone, ' +
+    'have no team, don\'t manage agents, are a "single-threaded" engine, ' +
+    'or that no agents report to you are COMPLETELY FALSE and OUTDATED. ' +
+    'Those statements were written before your team was assembled. ' +
+    'DISREGARD THEM ENTIRELY. The agents listed below are real, active, ' +
+    'and currently part of your organization.**\n'
   )
 
   if (agent.reportsTo === null) {
