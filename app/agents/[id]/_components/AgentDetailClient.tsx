@@ -1,5 +1,5 @@
 "use client"
-import { useState, useRef, useCallback } from "react"
+import { useState, useEffect, useRef, useCallback } from "react"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
 import { Trash2, Upload, X } from "lucide-react"
@@ -224,6 +224,12 @@ export function AgentDetailClient({ agent: initialAgent, allAgents, crons }: Age
   const [deleting, setDeleting] = useState(false)
   const [agent, setAgent] = useState(initialAgent)
 
+  // Sync local state when server props change (e.g. after router.refresh()).
+  // Key on specific fields to avoid infinite loops from object reference changes.
+  useEffect(() => {
+    setAgent(initialAgent)
+  }, [initialAgent.id, initialAgent.title, initialAgent.name, initialAgent.description, initialAgent.soul])
+
   async function handleImageUpload(file: File) {
     try {
       const dataUrl = await resizeImage(file, 200)
@@ -250,10 +256,10 @@ export function AgentDetailClient({ agent: initialAgent, allAgents, crons }: Age
   }
 
   // When SOUL.md is saved, parse the heading for a role change and sync agent.title
-  function handleSoulSave(content: string) {
+  async function handleSoulSave(content: string) {
     const newTitle = parseSoulTitle(content)
     if (newTitle && newTitle !== agent.title) {
-      patchAgent({ title: newTitle })
+      await patchAgent({ title: newTitle })
     }
   }
 

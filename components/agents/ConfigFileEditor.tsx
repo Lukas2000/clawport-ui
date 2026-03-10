@@ -12,7 +12,7 @@ interface ConfigFileEditorProps {
   filename: string
   label: string
   onSaveAsTemplate?: () => void
-  onSave?: (content: string) => void
+  onSave?: (content: string) => void | Promise<void>
 }
 
 export function ConfigFileEditor({ agentId, filename, label, onSaveAsTemplate, onSave }: ConfigFileEditorProps) {
@@ -64,7 +64,8 @@ export function ConfigFileEditor({ agentId, filename, label, onSaveAsTemplate, o
       setLastModified(new Date().toISOString())
 
       // Notify parent with saved content (used to sync agent title from SOUL.md heading)
-      onSave?.(content)
+      // Await so the PATCH completes before we refresh server data
+      await onSave?.(content)
 
       // After saving a config file, refresh server-side data and SWR caches
       // to propagate changes (especially title/role changes from SOUL.md updates)
