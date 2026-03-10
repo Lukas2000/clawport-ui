@@ -4,7 +4,7 @@ import { useEffect, useState } from 'react'
 import { Users, CircleDot, DollarSign, CheckCircle, Target } from 'lucide-react'
 import { MetricCard } from './MetricCard'
 import { IssueDistributionChart } from './IssueDistributionChart'
-import type { Task, Agent, Goal } from '@/lib/types'
+import type { Task, Agent, Goal, AuditEntry } from '@/lib/types'
 
 const STATUS_CHART_CONFIG: Record<string, { color: string; label: string }> = {
   backlog: { color: '#6B7280', label: 'Backlog' },
@@ -15,11 +15,31 @@ const STATUS_CHART_CONFIG: Record<string, { color: string; label: string }> = {
   cancelled: { color: '#9CA3AF', label: 'Cancelled' },
 }
 
+const ACTOR_COLORS: Record<string, string> = {
+  operator: '#3B82F6',
+  agent: '#8B5CF6',
+  system: '#6B7280',
+}
+
+const ACTION_VERBS: Record<string, string> = {
+  'task.created': 'created issue',
+  'task.updated': 'updated issue',
+  'task.deleted': 'deleted issue',
+  'goal.created': 'created goal',
+  'goal.updated': 'updated goal',
+  'goal.deleted': 'deleted goal',
+  'approval.created': 'requested approval',
+  'approval.decided': 'decided on approval',
+  'agent.created': 'created agent',
+  'agent.updated': 'updated agent',
+}
+
 export function DashboardView() {
   const [agents, setAgents] = useState<Agent[]>([])
   const [tasks, setTasks] = useState<Task[]>([])
   const [goals, setGoals] = useState<Goal[]>([])
   const [pendingApprovals, setPendingApprovals] = useState(0)
+  const [auditEntries, setAuditEntries] = useState<AuditEntry[]>([])
 
   useEffect(() => {
     Promise.all([
@@ -27,13 +47,15 @@ export function DashboardView() {
       fetch('/api/tasks?exclude_hidden=true').then(r => r.ok ? r.json() : []),
       fetch('/api/goals').then(r => r.ok ? r.json() : []),
       fetch('/api/approvals').then(r => r.ok ? r.json() : []),
-    ]).then(([agentsData, tasksData, goalsData, approvalsData]) => {
+      fetch('/api/audit?limit=12').then(r => r.ok ? r.json() : { entries: [] }),
+    ]).then(([agentsData, tasksData, goalsData, approvalsData, auditData]) => {
       setAgents(agentsData)
       setTasks(tasksData)
       setGoals(goalsData)
       setPendingApprovals(
         Array.isArray(approvalsData) ? approvalsData.filter((a: { status: string }) => a.status === 'pending').length : 0
       )
+      setAuditEntries(auditData.entries ?? [])
     }).catch(() => {})
   }, [])
 
@@ -52,10 +74,20 @@ export function DashboardView() {
     label: cfg.label,
   }))
 
-  // Recent activity (latest tasks)
+  // Recent tasks
   const recentTasks = [...tasks]
     .sort((a, b) => new Date(b.updatedAt ?? b.createdAt).getTime() - new Date(a.updatedAt ?? a.createdAt).getTime())
     .slice(0, 8)
+
+  function agentName(id: string | null): string {
+    if (!id) return ''
+    return agents.find(a => a.id === id)?.name ?? id
+  }
+
+  function agentEmoji(id: string | null): string {
+    if (!id) return ''
+    return agents.find(a => a.id === id)?.emoji ?? ''
+  }
 
   return (
     <div style={{ padding: '72px 24px 24px', maxWidth: '960px', margin: '0 auto', display: 'flex', flexDirection: 'column', gap: '24px' }}>
@@ -87,6 +119,167 @@ export function DashboardView() {
           value={pendingApprovals}
           color={pendingApprovals > 0 ? '#F59E0B' : '#22C55E'}
         />
+      </div>
+
+      {/* Two-column: Recent Activity + Recent Tasks (Paperclip-style) */}
+      <div style={{ display: 'flex', gap: '16px', flexWrap: 'wrap' }}>
+        {/* Recent Activity (audit trail) */}
+        <div
+          style={{
+            flex: '1 1 400px',
+            padding: '16px 20px',
+            borderRadius: '12px',
+            border: '1px solid var(--separator)',
+            background: 'var(--material)',
+            minHeight: '280px',
+          }}
+        >
+          <h3 style={{ fontSize: '13px', fontWeight: 600, color: 'var(--text-secondary)', margin: '0 0 12px', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
+            Recent Activity
+          </h3>
+          {auditEntries.length === 0 ? (
+            <div style={{ padding: '24px 0', color: 'var(--text-quaternary)', fontSize: '12px', textAlign: 'center' }}>
+              No activity recorded yet
+            </div>
+          ) : (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
+              {auditEntries.map(entry => (
+                <div
+                  key={entry.id}
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '8px',
+                    padding: '5px 6px',
+                    borderRadius: '6px',
+                  }}
+                >
+                  {/* Actor dot */}
+                  <span
+                    style={{
+                      width: '6px',
+                      height: '6px',
+                      borderRadius: '50%',
+                      background: ACTOR_COLORS[entry.actorType] ?? '#6B7280',
+                      flexShrink: 0,
+                    }}
+                  />
+                  {/* Actor label */}
+                  <span style={{
+                    fontSize: '11px',
+                    fontWeight: 600,
+                    color: ACTOR_COLORS[entry.actorType] ?? '#6B7280',
+                    flexShrink: 0,
+                    minWidth: '50px',
+                  }}>
+                    {entry.actorType === 'agent' && entry.agentId
+                      ? `${agentEmoji(entry.agentId)} ${agentName(entry.agentId)}`
+                      : entry.actorType === 'operator' ? 'You' : 'System'}
+                  </span>
+                  {/* Action */}
+                  <span style={{
+                    fontSize: '12px',
+                    color: 'var(--text-primary)',
+                    flex: 1,
+                    overflow: 'hidden',
+                    textOverflow: 'ellipsis',
+                    whiteSpace: 'nowrap',
+                  }}>
+                    {ACTION_VERBS[entry.action] ?? entry.action.replace(/\./g, ' ')}
+                    {entry.details && typeof entry.details === 'object' && 'title' in entry.details && (
+                      <span style={{ color: 'var(--text-secondary)' }}>
+                        {' '}<strong>{String(entry.details.title)}</strong>
+                      </span>
+                    )}
+                    {entry.entityId && !('title' in (entry.details ?? {})) && (
+                      <span style={{ fontFamily: 'var(--font-mono)', color: 'var(--text-tertiary)', marginLeft: 4, fontSize: '10px' }}>
+                        #{entry.entityId.slice(0, 8)}
+                      </span>
+                    )}
+                  </span>
+                  {/* Timestamp */}
+                  <span style={{ fontSize: '10px', color: 'var(--text-quaternary)', flexShrink: 0 }}>
+                    {formatRelativeTime(entry.timestamp)}
+                  </span>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+
+        {/* Recent Tasks */}
+        <div
+          style={{
+            flex: '1 1 400px',
+            padding: '16px 20px',
+            borderRadius: '12px',
+            border: '1px solid var(--separator)',
+            background: 'var(--material)',
+            minHeight: '280px',
+          }}
+        >
+          <h3 style={{ fontSize: '13px', fontWeight: 600, color: 'var(--text-secondary)', margin: '0 0 12px', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
+            Recent Tasks
+          </h3>
+          {recentTasks.length === 0 ? (
+            <div style={{ padding: '24px 0', color: 'var(--text-quaternary)', fontSize: '12px', textAlign: 'center' }}>
+              No tasks yet
+            </div>
+          ) : (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
+              {recentTasks.map(t => {
+                const agent = t.assignedAgentId ? agents.find(a => a.id === t.assignedAgentId) : null
+                return (
+                  <div
+                    key={t.id}
+                    style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '8px',
+                      padding: '5px 6px',
+                      borderRadius: '6px',
+                    }}
+                  >
+                    <span
+                      style={{
+                        width: '8px',
+                        height: '8px',
+                        borderRadius: '50%',
+                        background: STATUS_CHART_CONFIG[t.status]?.color ?? '#6B7280',
+                        flexShrink: 0,
+                      }}
+                    />
+                    <span style={{ fontSize: '11px', fontFamily: 'var(--font-mono)', color: 'var(--text-quaternary)', flexShrink: 0 }}>
+                      {t.identifier ?? t.id.slice(0, 6)}
+                    </span>
+                    <span style={{ fontSize: '12px', color: 'var(--text-primary)', flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                      {t.title}
+                    </span>
+                    {agent && (
+                      <span style={{ fontSize: '11px', flexShrink: 0 }} title={agent.name}>
+                        {agent.emoji}
+                      </span>
+                    )}
+                    <span style={{
+                      fontSize: '10px',
+                      padding: '1px 6px',
+                      borderRadius: '8px',
+                      background: (STATUS_CHART_CONFIG[t.status]?.color ?? '#6B7280') + '18',
+                      color: STATUS_CHART_CONFIG[t.status]?.color ?? '#6B7280',
+                      fontWeight: 500,
+                      flexShrink: 0,
+                    }}>
+                      {t.status}
+                    </span>
+                    <span style={{ fontSize: '10px', color: 'var(--text-quaternary)', flexShrink: 0 }}>
+                      {formatRelativeTime(t.updatedAt ?? t.createdAt)}
+                    </span>
+                  </div>
+                )
+              })}
+            </div>
+          )}
+        </div>
       </div>
 
       {/* Charts row */}
@@ -158,67 +351,6 @@ export function DashboardView() {
             </div>
           )}
         </div>
-      </div>
-
-      {/* Recent activity */}
-      <div
-        style={{
-          padding: '16px 20px',
-          borderRadius: '12px',
-          border: '1px solid var(--separator)',
-          background: 'var(--material)',
-        }}
-      >
-        <h3 style={{ fontSize: '13px', fontWeight: 600, color: 'var(--text-secondary)', margin: '0 0 12px' }}>
-          Recent Activity
-        </h3>
-        {recentTasks.length === 0 ? (
-          <div style={{ padding: '16px 0', color: 'var(--text-quaternary)', fontSize: '12px', textAlign: 'center' }}>
-            No recent activity
-          </div>
-        ) : (
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
-            {recentTasks.map(t => {
-              const agent = t.assignedAgentId ? agents.find(a => a.id === t.assignedAgentId) : null
-              return (
-                <div
-                  key={t.id}
-                  style={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: '8px',
-                    padding: '6px 8px',
-                    borderRadius: '6px',
-                  }}
-                >
-                  <span
-                    style={{
-                      width: '8px',
-                      height: '8px',
-                      borderRadius: '50%',
-                      background: STATUS_CHART_CONFIG[t.status]?.color ?? '#6B7280',
-                      flexShrink: 0,
-                    }}
-                  />
-                  <span style={{ fontSize: '11px', fontFamily: 'var(--font-mono)', color: 'var(--text-quaternary)', flexShrink: 0 }}>
-                    {t.identifier ?? t.id.slice(0, 6)}
-                  </span>
-                  <span style={{ fontSize: '12px', color: 'var(--text-primary)', flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                    {t.title}
-                  </span>
-                  {agent && (
-                    <span style={{ fontSize: '13px', flexShrink: 0 }} title={agent.name}>
-                      {agent.emoji}
-                    </span>
-                  )}
-                  <span style={{ fontSize: '10px', color: 'var(--text-quaternary)', flexShrink: 0 }}>
-                    {formatRelativeTime(t.updatedAt ?? t.createdAt)}
-                  </span>
-                </div>
-              )
-            })}
-          </div>
-        )}
       </div>
     </div>
   )

@@ -3,11 +3,11 @@
 import { useEffect, useState, useCallback } from 'react'
 import type { Task, Agent, IssueLabel, TaskComment, TaskStatus, Project } from '@/lib/types'
 import { IssueFilters, type IssueFilterState } from '@/components/issues/IssueFilters'
-import { IssuesList } from '@/components/issues/IssuesList'
+import { IssuesList, type GroupBy, type SortField, type SortDir } from '@/components/issues/IssuesList'
 import { IssueBoard } from '@/components/issues/IssueBoard'
 import { IssueDetail } from '@/components/issues/IssueDetail'
 import { NewIssueDialog } from '@/components/issues/NewIssueDialog'
-import { Plus, List, LayoutGrid } from 'lucide-react'
+import { Plus, List, LayoutGrid, ArrowUpDown, Layers, Filter, X } from 'lucide-react'
 
 type ViewMode = 'list' | 'board'
 
@@ -21,6 +21,11 @@ export default function IssuesPage() {
   const [viewMode, setViewMode] = useState<ViewMode>('list')
   const [selectedTask, setSelectedTask] = useState<Task | null>(null)
   const [showCreate, setShowCreate] = useState(false)
+  const [groupBy, setGroupBy] = useState<GroupBy>('status')
+  const [sortField, setSortField] = useState<SortField>('created')
+  const [sortDir, setSortDir] = useState<SortDir>('desc')
+  const [showSortMenu, setShowSortMenu] = useState(false)
+  const [showGroupMenu, setShowGroupMenu] = useState(false)
   const [filters, setFilters] = useState<IssueFilterState>({
     status: null,
     priority: null,
@@ -92,10 +97,8 @@ export default function IssuesPage() {
       fetch(`/api/tasks/${id}/labels`).then(r => r.json()).catch(() => []),
     ]).then(([commentsData, , labelsData]) => {
       setComments(Array.isArray(commentsData) ? commentsData : [])
-      // Sub-issues: filter from already loaded tasks
       setSubIssues(tasks.filter(t => t.parentId === id))
       setSelectedTaskLabels(Array.isArray(labelsData) ? labelsData : [])
-      // Ancestry: walk up parent chain from loaded tasks
       const anc: Task[] = []
       let current = selectedTask
       for (let i = 0; i < 10 && current?.parentId; i++) {
@@ -108,7 +111,7 @@ export default function IssuesPage() {
     })
   }, [selectedTask, tasks])
 
-  // Filter by label client-side (since API doesn't support label filtering)
+  // Filter by label client-side
   let filteredTasks = tasks
   if (filters.labelId) {
     filteredTasks = tasks.filter(t => (taskLabels[t.id] ?? []).includes(filters.labelId!))
@@ -121,6 +124,9 @@ export default function IssuesPage() {
       subIssueCounts[t.parentId] = (subIssueCounts[t.parentId] ?? 0) + 1
     }
   }
+
+  // Active filter count
+  const activeFilterCount = [filters.status, filters.priority, filters.agentId, filters.labelId, filters.search].filter(Boolean).length
 
   async function handleCreate(data: {
     title: string
@@ -176,7 +182,6 @@ export default function IssuesPage() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ content, authorType: 'operator' }),
       })
-      // Reload comments
       const res = await fetch(`/api/tasks/${selectedTask.id}/comments`)
       const data = await res.json()
       setComments(Array.isArray(data) ? data : [])
@@ -206,7 +211,7 @@ export default function IssuesPage() {
           </p>
         </div>
 
-        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
           {/* View switcher */}
           <div
             style={{
@@ -239,6 +244,182 @@ export default function IssuesPage() {
                 <v.icon size={14} />
               </button>
             ))}
+          </div>
+
+          {/* Filter count badge */}
+          {activeFilterCount > 0 && (
+            <button
+              onClick={() => setFilters({ status: null, priority: null, agentId: null, labelId: null, search: '' })}
+              style={{
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '4px',
+                padding: '4px 10px',
+                borderRadius: '6px',
+                border: 'none',
+                background: 'var(--accent-fill)',
+                color: 'var(--accent)',
+                fontSize: '11px',
+                fontWeight: 600,
+                cursor: 'pointer',
+              }}
+            >
+              <Filter size={11} />
+              Filters: {activeFilterCount}
+              <X size={10} style={{ opacity: 0.7 }} />
+            </button>
+          )}
+
+          {/* Sort button */}
+          <div style={{ position: 'relative' }}>
+            <button
+              onClick={() => { setShowSortMenu(!showSortMenu); setShowGroupMenu(false) }}
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: '4px',
+                padding: '5px 10px',
+                borderRadius: '6px',
+                border: '1px solid var(--separator)',
+                background: 'transparent',
+                color: 'var(--text-secondary)',
+                fontSize: '12px',
+                fontWeight: 500,
+                cursor: 'pointer',
+              }}
+            >
+              <ArrowUpDown size={12} />
+              Sort
+            </button>
+            {showSortMenu && (
+              <>
+                <div style={{ position: 'fixed', inset: 0, zIndex: 49 }} onClick={() => setShowSortMenu(false)} />
+                <div style={{
+                  position: 'absolute',
+                  top: '100%',
+                  right: 0,
+                  marginTop: '4px',
+                  minWidth: '150px',
+                  background: 'var(--material-thick)',
+                  border: '1px solid var(--separator)',
+                  borderRadius: '8px',
+                  padding: '4px',
+                  zIndex: 50,
+                  boxShadow: '0 8px 24px rgba(0,0,0,0.2)',
+                }}>
+                  {([
+                    { field: 'created' as SortField, label: 'Created' },
+                    { field: 'updated' as SortField, label: 'Updated' },
+                    { field: 'priority' as SortField, label: 'Priority' },
+                    { field: 'title' as SortField, label: 'Title' },
+                  ]).map(s => (
+                    <button
+                      key={s.field}
+                      onClick={() => {
+                        if (sortField === s.field) {
+                          setSortDir(sortDir === 'asc' ? 'desc' : 'asc')
+                        } else {
+                          setSortField(s.field)
+                          setSortDir('desc')
+                        }
+                        setShowSortMenu(false)
+                      }}
+                      style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'space-between',
+                        width: '100%',
+                        padding: '6px 8px',
+                        border: 'none',
+                        borderRadius: '4px',
+                        background: sortField === s.field ? 'var(--accent-fill)' : 'transparent',
+                        color: sortField === s.field ? 'var(--accent)' : 'var(--text-primary)',
+                        fontSize: '12px',
+                        fontWeight: sortField === s.field ? 600 : 400,
+                        cursor: 'pointer',
+                        textAlign: 'left',
+                      }}
+                    >
+                      {s.label}
+                      {sortField === s.field && (
+                        <span style={{ fontSize: '10px', color: 'var(--text-tertiary)' }}>
+                          {sortDir === 'asc' ? '↑' : '↓'}
+                        </span>
+                      )}
+                    </button>
+                  ))}
+                </div>
+              </>
+            )}
+          </div>
+
+          {/* Group button */}
+          <div style={{ position: 'relative' }}>
+            <button
+              onClick={() => { setShowGroupMenu(!showGroupMenu); setShowSortMenu(false) }}
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: '4px',
+                padding: '5px 10px',
+                borderRadius: '6px',
+                border: '1px solid var(--separator)',
+                background: groupBy !== 'none' ? 'var(--accent-fill)' : 'transparent',
+                color: groupBy !== 'none' ? 'var(--accent)' : 'var(--text-secondary)',
+                fontSize: '12px',
+                fontWeight: 500,
+                cursor: 'pointer',
+              }}
+            >
+              <Layers size={12} />
+              Group
+            </button>
+            {showGroupMenu && (
+              <>
+                <div style={{ position: 'fixed', inset: 0, zIndex: 49 }} onClick={() => setShowGroupMenu(false)} />
+                <div style={{
+                  position: 'absolute',
+                  top: '100%',
+                  right: 0,
+                  marginTop: '4px',
+                  minWidth: '140px',
+                  background: 'var(--material-thick)',
+                  border: '1px solid var(--separator)',
+                  borderRadius: '8px',
+                  padding: '4px',
+                  zIndex: 50,
+                  boxShadow: '0 8px 24px rgba(0,0,0,0.2)',
+                }}>
+                  {([
+                    { value: 'status' as GroupBy, label: 'Status' },
+                    { value: 'priority' as GroupBy, label: 'Priority' },
+                    { value: 'assignee' as GroupBy, label: 'Assignee' },
+                    { value: 'none' as GroupBy, label: 'None' },
+                  ]).map(g => (
+                    <button
+                      key={g.value}
+                      onClick={() => { setGroupBy(g.value); setShowGroupMenu(false) }}
+                      style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        width: '100%',
+                        padding: '6px 8px',
+                        border: 'none',
+                        borderRadius: '4px',
+                        background: groupBy === g.value ? 'var(--accent-fill)' : 'transparent',
+                        color: groupBy === g.value ? 'var(--accent)' : 'var(--text-primary)',
+                        fontSize: '12px',
+                        fontWeight: groupBy === g.value ? 600 : 400,
+                        cursor: 'pointer',
+                        textAlign: 'left',
+                      }}
+                    >
+                      {g.label}
+                    </button>
+                  ))}
+                </div>
+              </>
+            )}
           </div>
 
           <button
@@ -302,6 +483,9 @@ export default function IssuesPage() {
               taskLabels={taskLabels}
               onSelect={(t) => setSelectedTask(t)}
               selectedId={selectedTask?.id}
+              groupBy={groupBy}
+              sortField={sortField}
+              sortDir={sortDir}
             />
           ) : (
             <IssueBoard
@@ -322,6 +506,7 @@ export default function IssuesPage() {
           <IssueDetail
             task={selectedTask}
             agents={agents}
+            projects={projects}
             allLabels={labels}
             taskLabels={selectedTaskLabels}
             comments={comments}

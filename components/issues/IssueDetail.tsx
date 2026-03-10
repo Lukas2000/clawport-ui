@@ -1,7 +1,7 @@
 'use client'
 
-import { useState, useEffect, useCallback } from 'react'
-import type { Task, Agent, IssueLabel, TaskComment, TaskStatus, TaskPriority } from '@/lib/types'
+import { useState, useEffect } from 'react'
+import type { Task, Agent, IssueLabel, TaskComment, TaskStatus, TaskPriority, Project, AuditEntry } from '@/lib/types'
 import { AgentAvatar } from '@/components/AgentAvatar'
 import { StatusIcon, STATUS_CONFIG } from './StatusIcon'
 import { PriorityIcon, PRIORITY_CONFIG } from './PriorityIcon'
@@ -10,6 +10,7 @@ import { X, ChevronRight, MessageSquare, GitBranch, Activity } from 'lucide-reac
 interface IssueDetailProps {
   task: Task
   agents: Agent[]
+  projects?: Project[]
   allLabels: IssueLabel[]
   taskLabels: IssueLabel[]
   comments: TaskComment[]
@@ -31,6 +32,10 @@ function relativeTime(ts: string): string {
   if (hrs < 24) return `${hrs}h ago`
   const days = Math.floor(hrs / 24)
   return `${days}d ago`
+}
+
+function formatDate(ts: string): string {
+  return new Date(ts).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
 }
 
 function PropertyRow({ label, children }: { label: string; children: React.ReactNode }) {
@@ -56,12 +61,11 @@ function InlineSelect({
   value,
   options,
   onChange,
-  renderOption,
 }: {
   value: string
   options: string[]
   onChange: (v: string) => void
-  renderOption: (v: string) => React.ReactNode
+  renderOption?: (v: string) => React.ReactNode
 }) {
   return (
     <select
@@ -83,15 +87,28 @@ function InlineSelect({
       onBlur={(e) => (e.target.style.borderColor = 'transparent')}
     >
       {options.map(o => (
-        <option key={o} value={o}>{typeof renderOption === 'function' ? o : o}</option>
+        <option key={o} value={o}>{o}</option>
       ))}
     </select>
   )
 }
 
+const ACTOR_COLORS: Record<string, string> = {
+  operator: 'var(--system-blue)',
+  agent: 'var(--system-purple)',
+  system: 'var(--text-tertiary)',
+}
+
+const ACTION_VERBS: Record<string, string> = {
+  'task.created': 'created this issue',
+  'task.updated': 'updated this issue',
+  'task.deleted': 'deleted this issue',
+}
+
 export function IssueDetail({
   task,
   agents,
+  projects,
   allLabels,
   taskLabels,
   comments,
@@ -103,15 +120,31 @@ export function IssueDetail({
 }: IssueDetailProps) {
   const [tab, setTab] = useState<Tab>('comments')
   const [commentDraft, setCommentDraft] = useState('')
+  const [activityEntries, setActivityEntries] = useState<AuditEntry[]>([])
   const agent = task.assignedAgentId ? agents.find(a => a.id === task.assignedAgentId) ?? null : null
+  const project = task.projectId && projects ? projects.find(p => p.id === task.projectId) ?? null : null
 
   const statuses: TaskStatus[] = ['backlog', 'todo', 'in-progress', 'review', 'done', 'cancelled']
   const priorities: TaskPriority[] = ['urgent', 'high', 'medium', 'low', 'none']
+
+  // Load activity when tab switches to activity
+  useEffect(() => {
+    if (tab !== 'activity') return
+    fetch(`/api/audit?entityType=task&entityId=${task.id}&limit=50`)
+      .then(r => r.ok ? r.json() : { entries: [] })
+      .then((data: { entries: AuditEntry[] }) => setActivityEntries(data.entries ?? []))
+      .catch(() => {})
+  }, [tab, task.id])
 
   function handleSubmitComment() {
     if (!commentDraft.trim()) return
     onAddComment(commentDraft.trim())
     setCommentDraft('')
+  }
+
+  function agentName(id: string | null): string {
+    if (!id) return 'System'
+    return agents.find(a => a.id === id)?.name ?? id
   }
 
   return (
@@ -164,6 +197,16 @@ export function IssueDetail({
           >
             {task.identifier ?? task.id.slice(0, 8)}
           </span>
+          {/* Project badge */}
+          {project && (
+            <span style={{
+              fontSize: '11px',
+              color: 'var(--text-tertiary)',
+              marginLeft: '4px',
+            }}>
+              · {project.name}
+            </span>
+          )}
         </div>
         <button
           onClick={onClose}
@@ -247,6 +290,30 @@ export function IssueDetail({
             </div>
           </PropertyRow>
 
+          <PropertyRow label="Labels">
+            <div style={{ display: 'flex', gap: '3px', flexWrap: 'wrap' }}>
+              {taskLabels.map(l => (
+                <span
+                  key={l.id}
+                  style={{
+                    fontSize: '10px',
+                    fontWeight: 500,
+                    padding: '1px 6px',
+                    borderRadius: '4px',
+                    background: `color-mix(in srgb, ${l.color} 15%, transparent)`,
+                    color: l.color,
+                    lineHeight: '16px',
+                  }}
+                >
+                  {l.name}
+                </span>
+              ))}
+              {taskLabels.length === 0 && (
+                <span style={{ fontSize: '12px', color: 'var(--text-quaternary)' }}>No labels</span>
+              )}
+            </div>
+          </PropertyRow>
+
           <PropertyRow label="Assignee">
             {agent ? (
               <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
@@ -274,41 +341,67 @@ export function IssueDetail({
             )}
           </PropertyRow>
 
-          <PropertyRow label="Labels">
-            <div style={{ display: 'flex', gap: '3px', flexWrap: 'wrap' }}>
-              {taskLabels.map(l => (
-                <span
-                  key={l.id}
-                  style={{
-                    fontSize: '10px',
-                    fontWeight: 500,
-                    padding: '1px 6px',
-                    borderRadius: '4px',
-                    background: `color-mix(in srgb, ${l.color} 15%, transparent)`,
-                    color: l.color,
-                    lineHeight: '16px',
-                  }}
-                >
-                  {l.name}
-                </span>
-              ))}
-              {taskLabels.length === 0 && (
-                <span style={{ fontSize: '12px', color: 'var(--text-quaternary)' }}>None</span>
-              )}
-            </div>
+          {/* Project */}
+          <PropertyRow label="Project">
+            {projects && projects.length > 0 ? (
+              <select
+                value={task.projectId ?? ''}
+                onChange={(e) => onUpdate({ projectId: e.target.value || null })}
+                style={{
+                  background: 'transparent',
+                  border: '1px solid transparent',
+                  borderRadius: '4px',
+                  padding: '2px 4px',
+                  fontSize: '12px',
+                  color: task.projectId ? 'var(--text-primary)' : 'var(--text-quaternary)',
+                  cursor: 'pointer',
+                  outline: 'none',
+                  appearance: 'none',
+                  WebkitAppearance: 'none',
+                }}
+                onFocus={(e) => (e.target.style.borderColor = 'var(--separator)')}
+                onBlur={(e) => (e.target.style.borderColor = 'transparent')}
+              >
+                <option value="">None</option>
+                {projects.map(p => (
+                  <option key={p.id} value={p.id}>{p.name}</option>
+                ))}
+              </select>
+            ) : (
+              <span style={{ fontSize: '12px', color: 'var(--text-quaternary)' }}>
+                {project?.name ?? 'None'}
+              </span>
+            )}
           </PropertyRow>
 
           {task.dueDate && (
             <PropertyRow label="Due date">
               <span style={{ fontSize: '12px', color: 'var(--text-primary)' }}>
-                {new Date(task.dueDate).toLocaleDateString()}
+                {formatDate(task.dueDate)}
               </span>
             </PropertyRow>
           )}
 
+          {/* Started */}
+          {task.startedAt && (
+            <PropertyRow label="Started">
+              <span style={{ fontSize: '12px', color: 'var(--text-primary)', fontWeight: 500 }}>
+                {formatDate(task.startedAt)}
+              </span>
+            </PropertyRow>
+          )}
+
+          {/* Created */}
           <PropertyRow label="Created">
+            <span style={{ fontSize: '12px', color: 'var(--text-primary)', fontWeight: 500 }}>
+              {formatDate(task.createdAt)}
+            </span>
+          </PropertyRow>
+
+          {/* Updated */}
+          <PropertyRow label="Updated">
             <span style={{ fontSize: '12px', color: 'var(--text-tertiary)' }}>
-              {relativeTime(task.createdAt)}
+              {relativeTime(task.updatedAt ?? task.createdAt)}
             </span>
           </PropertyRow>
         </div>
@@ -325,6 +418,7 @@ export function IssueDetail({
           {([
             { key: 'comments' as Tab, icon: MessageSquare, label: 'Comments', count: comments.length },
             { key: 'sub-issues' as Tab, icon: GitBranch, label: 'Sub-issues', count: subIssues.length },
+            { key: 'activity' as Tab, icon: Activity, label: 'Activity', count: 0 },
           ]).map(t => (
             <button
               key={t.key}
@@ -372,27 +466,33 @@ export function IssueDetail({
                 No comments yet.
               </span>
             )}
-            {comments.map(c => (
-              <div key={c.id} style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                  <span
-                    style={{
-                      fontSize: '11px',
-                      fontWeight: 600,
-                      color: c.authorType === 'agent' ? 'var(--accent)' : 'var(--text-secondary)',
-                    }}
-                  >
-                    {c.authorType === 'agent' ? (c.authorId ?? 'Agent') : 'Operator'}
-                  </span>
-                  <span style={{ fontSize: '10px', color: 'var(--text-quaternary)' }}>
-                    {relativeTime(c.createdAt)}
-                  </span>
+            {comments.map(c => {
+              const commentAgent = c.authorType === 'agent' && c.authorId ? agents.find(a => a.id === c.authorId) : null
+              return (
+                <div key={c.id} style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                    {commentAgent && <AgentAvatar agent={commentAgent} size={16} borderRadius={4} />}
+                    <span
+                      style={{
+                        fontSize: '11px',
+                        fontWeight: 600,
+                        color: c.authorType === 'agent' ? 'var(--accent)' : 'var(--text-secondary)',
+                      }}
+                    >
+                      {c.authorType === 'agent'
+                        ? (commentAgent ? commentAgent.name : (c.authorId ?? 'Agent'))
+                        : 'You'}
+                    </span>
+                    <span style={{ fontSize: '10px', color: 'var(--text-quaternary)' }}>
+                      {formatDate(c.createdAt)}, {new Date(c.createdAt).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' })}
+                    </span>
+                  </div>
+                  <p style={{ fontSize: '12px', color: 'var(--text-primary)', margin: 0, lineHeight: 1.5, whiteSpace: 'pre-wrap' }}>
+                    {c.content}
+                  </p>
                 </div>
-                <p style={{ fontSize: '12px', color: 'var(--text-primary)', margin: 0, lineHeight: 1.5, whiteSpace: 'pre-wrap' }}>
-                  {c.content}
-                </p>
-              </div>
-            ))}
+              )
+            })}
 
             {/* Comment input */}
             <div style={{ display: 'flex', gap: '8px', marginTop: '4px' }}>
@@ -461,6 +561,57 @@ export function IssueDetail({
                 </span>
               </div>
             ))}
+          </div>
+        )}
+
+        {tab === 'activity' && (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+            {activityEntries.length === 0 ? (
+              <span style={{ fontSize: '12px', color: 'var(--text-quaternary)', padding: '8px 0' }}>
+                No activity recorded for this issue.
+              </span>
+            ) : (
+              activityEntries.map(entry => (
+                <div
+                  key={entry.id}
+                  style={{
+                    display: 'flex',
+                    alignItems: 'flex-start',
+                    gap: '8px',
+                    padding: '6px 0',
+                    borderBottom: '1px solid var(--separator-light, var(--separator))',
+                  }}
+                >
+                  <span
+                    style={{
+                      width: '6px',
+                      height: '6px',
+                      borderRadius: '50%',
+                      background: ACTOR_COLORS[entry.actorType] ?? 'var(--text-tertiary)',
+                      flexShrink: 0,
+                      marginTop: '5px',
+                    }}
+                  />
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div style={{ fontSize: '12px', color: 'var(--text-primary)' }}>
+                      <span style={{ fontWeight: 600, color: ACTOR_COLORS[entry.actorType] ?? 'var(--text-tertiary)' }}>
+                        {entry.actorType === 'agent' && entry.agentId ? agentName(entry.agentId) : entry.actorType === 'operator' ? 'You' : 'System'}
+                      </span>
+                      {' '}
+                      {ACTION_VERBS[entry.action] ?? entry.action.replace(/\./g, ' ')}
+                    </div>
+                    {entry.details && typeof entry.details === 'object' && Object.keys(entry.details).length > 0 && (
+                      <div style={{ fontSize: '10px', color: 'var(--text-quaternary)', fontFamily: 'var(--font-mono)', marginTop: '2px' }}>
+                        {Object.entries(entry.details).map(([k, v]) => `${k}: ${v}`).join(', ')}
+                      </div>
+                    )}
+                    <div style={{ fontSize: '10px', color: 'var(--text-quaternary)', marginTop: '2px' }}>
+                      {relativeTime(entry.timestamp)}
+                    </div>
+                  </div>
+                </div>
+              ))
+            )}
           </div>
         )}
       </div>

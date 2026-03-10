@@ -1,9 +1,11 @@
 'use client'
 
-import type { Task, Agent, IssueLabel } from '@/lib/types'
+import { useState } from 'react'
+import type { Task, Agent, IssueLabel, TaskStatus } from '@/lib/types'
 import { AgentAvatar } from '@/components/AgentAvatar'
-import { StatusIcon } from './StatusIcon'
+import { StatusIcon, STATUS_CONFIG } from './StatusIcon'
 import { PriorityIcon } from './PriorityIcon'
+import { ChevronDown, ChevronRight } from 'lucide-react'
 
 function relativeTime(ts: string): string {
   const diff = Date.now() - new Date(ts).getTime()
@@ -17,6 +19,14 @@ function relativeTime(ts: string): string {
   return `${Math.floor(days / 30)}mo`
 }
 
+function formatDate(ts: string): string {
+  return new Date(ts).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
+}
+
+export type SortField = 'created' | 'updated' | 'priority' | 'title'
+export type SortDir = 'asc' | 'desc'
+export type GroupBy = 'status' | 'priority' | 'assignee' | 'none'
+
 interface IssuesListProps {
   tasks: Task[]
   agents: Agent[]
@@ -24,11 +34,127 @@ interface IssuesListProps {
   taskLabels: Record<string, string[]>
   onSelect: (task: Task) => void
   selectedId?: string | null
+  groupBy?: GroupBy
+  sortField?: SortField
+  sortDir?: SortDir
 }
 
-export function IssuesList({ tasks, agents, labels, taskLabels, onSelect, selectedId }: IssuesListProps) {
+const STATUS_ORDER: TaskStatus[] = ['in-progress', 'review', 'todo', 'backlog', 'done', 'cancelled']
+
+const PRIORITY_ORDER: Record<string, number> = { urgent: 0, high: 1, medium: 2, low: 3, none: 4 }
+
+function sortTasks(tasks: Task[], field: SortField, dir: SortDir): Task[] {
+  const sorted = [...tasks].sort((a, b) => {
+    let cmp = 0
+    switch (field) {
+      case 'created':
+        cmp = new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime()
+        break
+      case 'updated':
+        cmp = new Date(a.updatedAt ?? a.createdAt).getTime() - new Date(b.updatedAt ?? b.createdAt).getTime()
+        break
+      case 'priority':
+        cmp = (PRIORITY_ORDER[a.priority] ?? 4) - (PRIORITY_ORDER[b.priority] ?? 4)
+        break
+      case 'title':
+        cmp = a.title.localeCompare(b.title)
+        break
+    }
+    return dir === 'asc' ? cmp : -cmp
+  })
+  return sorted
+}
+
+interface TaskGroup {
+  key: string
+  label: string
+  tasks: Task[]
+  color?: string
+}
+
+function groupTasks(tasks: Task[], groupBy: GroupBy, agents: Agent[]): TaskGroup[] {
+  if (groupBy === 'none') {
+    return [{ key: 'all', label: '', tasks }]
+  }
+
+  if (groupBy === 'status') {
+    const groups: TaskGroup[] = []
+    for (const status of STATUS_ORDER) {
+      const statusTasks = tasks.filter(t => t.status === status)
+      if (statusTasks.length > 0) {
+        const cfg = STATUS_CONFIG[status]
+        groups.push({
+          key: status,
+          label: cfg?.label ?? status,
+          tasks: statusTasks,
+          color: cfg?.color,
+        })
+      }
+    }
+    return groups
+  }
+
+  if (groupBy === 'priority') {
+    const order = ['urgent', 'high', 'medium', 'low', 'none']
+    const groups: TaskGroup[] = []
+    for (const p of order) {
+      const pTasks = tasks.filter(t => t.priority === p)
+      if (pTasks.length > 0) {
+        groups.push({
+          key: p,
+          label: p.charAt(0).toUpperCase() + p.slice(1),
+          tasks: pTasks,
+        })
+      }
+    }
+    return groups
+  }
+
+  if (groupBy === 'assignee') {
+    const agentMap = new Map(agents.map(a => [a.id, a]))
+    const assigned = new Map<string, Task[]>()
+    const unassigned: Task[] = []
+    for (const t of tasks) {
+      if (t.assignedAgentId) {
+        const list = assigned.get(t.assignedAgentId) ?? []
+        list.push(t)
+        assigned.set(t.assignedAgentId, list)
+      } else {
+        unassigned.push(t)
+      }
+    }
+    const groups: TaskGroup[] = []
+    for (const [agentId, agentTasks] of assigned) {
+      const agent = agentMap.get(agentId)
+      groups.push({
+        key: agentId,
+        label: agent ? `${agent.emoji} ${agent.name}` : agentId,
+        tasks: agentTasks,
+      })
+    }
+    if (unassigned.length > 0) {
+      groups.push({ key: 'unassigned', label: 'Unassigned', tasks: unassigned })
+    }
+    return groups
+  }
+
+  return [{ key: 'all', label: '', tasks }]
+}
+
+export function IssuesList({
+  tasks,
+  agents,
+  labels,
+  taskLabels,
+  onSelect,
+  selectedId,
+  groupBy = 'status',
+  sortField = 'created',
+  sortDir = 'desc',
+}: IssuesListProps) {
   const agentMap = new Map(agents.map(a => [a.id, a]))
   const labelMap = new Map(labels.map(l => [l.id, l]))
+  const [collapsed, setCollapsed] = useState<Set<string>>(new Set())
 
   if (tasks.length === 0) {
     return (
@@ -53,185 +179,220 @@ export function IssuesList({ tasks, agents, labels, taskLabels, onSelect, select
     )
   }
 
+  const sorted = sortTasks(tasks, sortField, sortDir)
+  const groups = groupTasks(sorted, groupBy, agents)
+
+  function toggleGroup(key: string) {
+    setCollapsed(prev => {
+      const next = new Set(prev)
+      if (next.has(key)) next.delete(key)
+      else next.add(key)
+      return next
+    })
+  }
+
   return (
     <div style={{ display: 'flex', flexDirection: 'column' }}>
-      {/* Header row */}
-      <div
-        style={{
-          display: 'grid',
-          gridTemplateColumns: '18px 70px 1fr auto auto auto auto',
-          gap: '8px',
-          alignItems: 'center',
-          padding: '6px 12px',
-          fontSize: '10px',
-          fontWeight: 600,
-          textTransform: 'uppercase',
-          letterSpacing: '0.05em',
-          color: 'var(--text-quaternary)',
-          borderBottom: '1px solid var(--separator)',
-        }}
-      >
-        <span />
-        <span>ID</span>
-        <span>Title</span>
-        <span>Labels</span>
-        <span>Assignee</span>
-        <span>Priority</span>
-        <span>Created</span>
-      </div>
-
-      {/* Task rows */}
-      {tasks.map(task => {
-        const agent = task.assignedAgentId ? agentMap.get(task.assignedAgentId) ?? null : null
-        const taskLabelIds = taskLabels[task.id] ?? []
-        const taskLabelList = taskLabelIds.map(id => labelMap.get(id)).filter(Boolean) as IssueLabel[]
-        const isSelected = selectedId === task.id
-        const isExecuting = task.workState === 'working'
-
-        return (
-          <div
-            key={task.id}
-            onClick={() => onSelect(task)}
-            role="button"
-            tabIndex={0}
-            onKeyDown={(e) => { if (e.key === 'Enter') onSelect(task) }}
-            style={{
-              display: 'grid',
-              gridTemplateColumns: '18px 70px 1fr auto auto auto auto',
-              gap: '8px',
-              alignItems: 'center',
-              padding: '8px 12px',
-              cursor: 'pointer',
-              background: isSelected ? 'var(--accent-fill)' : 'transparent',
-              borderBottom: '1px solid var(--separator-light, var(--separator))',
-              transition: 'background 80ms',
-              minHeight: '40px',
-            }}
-            onMouseEnter={(e) => {
-              if (!isSelected) (e.currentTarget.style.background = 'var(--fill-quaternary)')
-            }}
-            onMouseLeave={(e) => {
-              if (!isSelected) (e.currentTarget.style.background = 'transparent')
-            }}
-          >
-            {/* Status */}
-            <StatusIcon status={task.status} size={14} />
-
-            {/* Identifier */}
-            <span
+      {groups.map(group => (
+        <div key={group.key}>
+          {/* Group header */}
+          {group.label && (
+            <button
+              onClick={() => toggleGroup(group.key)}
               style={{
-                fontSize: '11px',
-                fontFamily: 'var(--font-mono)',
-                fontWeight: 500,
-                color: 'var(--text-tertiary)',
-                overflow: 'hidden',
-                textOverflow: 'ellipsis',
-                whiteSpace: 'nowrap',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '6px',
+                width: '100%',
+                padding: '8px 12px',
+                border: 'none',
+                background: 'var(--fill-quaternary)',
+                cursor: 'pointer',
+                textAlign: 'left',
               }}
             >
-              {task.identifier ?? '—'}
-            </span>
+              {collapsed.has(group.key) ? (
+                <ChevronRight size={12} style={{ color: 'var(--text-tertiary)', flexShrink: 0 }} />
+              ) : (
+                <ChevronDown size={12} style={{ color: 'var(--text-tertiary)', flexShrink: 0 }} />
+              )}
+              {groupBy === 'status' && <StatusIcon status={group.key as TaskStatus} size={12} />}
+              <span style={{
+                fontSize: '11px',
+                fontWeight: 700,
+                color: group.color ?? 'var(--text-secondary)',
+                textTransform: 'uppercase',
+                letterSpacing: '0.04em',
+              }}>
+                {group.label}
+              </span>
+              <span style={{
+                fontSize: '10px',
+                fontFamily: 'var(--font-mono)',
+                color: 'var(--text-quaternary)',
+                marginLeft: '2px',
+              }}>
+                {group.tasks.length}
+              </span>
+            </button>
+          )}
 
-            {/* Title */}
-            <div style={{ display: 'flex', alignItems: 'center', gap: '6px', overflow: 'hidden' }}>
-              <span
+          {/* Task rows */}
+          {!collapsed.has(group.key) && group.tasks.map(task => {
+            const agent = task.assignedAgentId ? agentMap.get(task.assignedAgentId) ?? null : null
+            const taskLabelIds = taskLabels[task.id] ?? []
+            const taskLabelList = taskLabelIds.map(id => labelMap.get(id)).filter(Boolean) as IssueLabel[]
+            const isSelected = selectedId === task.id
+            const isExecuting = task.workState === 'working'
+
+            return (
+              <div
+                key={task.id}
+                onClick={() => onSelect(task)}
+                role="button"
+                tabIndex={0}
+                onKeyDown={(e) => { if (e.key === 'Enter') onSelect(task) }}
                 style={{
-                  fontSize: '13px',
-                  fontWeight: 500,
-                  color: 'var(--text-primary)',
-                  overflow: 'hidden',
-                  textOverflow: 'ellipsis',
-                  whiteSpace: 'nowrap',
+                  display: 'grid',
+                  gridTemplateColumns: '18px 70px 1fr auto auto auto auto',
+                  gap: '8px',
+                  alignItems: 'center',
+                  padding: '8px 12px 8px 28px',
+                  cursor: 'pointer',
+                  background: isSelected ? 'var(--accent-fill)' : 'transparent',
+                  borderBottom: '1px solid var(--separator-light, var(--separator))',
+                  transition: 'background 80ms',
+                  minHeight: '40px',
+                }}
+                onMouseEnter={(e) => {
+                  if (!isSelected) (e.currentTarget.style.background = 'var(--fill-quaternary)')
+                }}
+                onMouseLeave={(e) => {
+                  if (!isSelected) (e.currentTarget.style.background = 'transparent')
                 }}
               >
-                {task.title}
-              </span>
-              {isExecuting && (
-                <span
-                  style={{
-                    width: 6,
-                    height: 6,
-                    borderRadius: '50%',
-                    background: 'var(--system-cyan, #32ADE6)',
-                    animation: 'pulse 1.5s ease-in-out infinite',
-                    flexShrink: 0,
-                  }}
-                />
-              )}
-              {task.checkoutAgentId && (
-                <span
-                  style={{
-                    fontSize: '9px',
-                    fontWeight: 600,
-                    color: 'var(--system-orange)',
-                    background: 'color-mix(in srgb, var(--system-orange) 10%, transparent)',
-                    borderRadius: '3px',
-                    padding: '0 3px',
-                    flexShrink: 0,
-                  }}
-                >
-                  🔒
-                </span>
-              )}
-            </div>
+                {/* Status */}
+                <StatusIcon status={task.status} size={14} />
 
-            {/* Labels */}
-            <div style={{ display: 'flex', gap: '3px', flexWrap: 'nowrap', overflow: 'hidden' }}>
-              {taskLabelList.slice(0, 2).map(l => (
+                {/* Identifier */}
                 <span
-                  key={l.id}
                   style={{
-                    fontSize: '10px',
+                    fontSize: '11px',
+                    fontFamily: 'var(--font-mono)',
                     fontWeight: 500,
-                    padding: '0 5px',
-                    borderRadius: '3px',
-                    background: `color-mix(in srgb, ${l.color} 15%, transparent)`,
-                    color: l.color,
-                    lineHeight: '16px',
+                    color: 'var(--text-tertiary)',
+                    overflow: 'hidden',
+                    textOverflow: 'ellipsis',
                     whiteSpace: 'nowrap',
                   }}
                 >
-                  {l.name}
+                  {task.identifier ?? '—'}
                 </span>
-              ))}
-              {taskLabelList.length > 2 && (
-                <span style={{ fontSize: '10px', color: 'var(--text-quaternary)' }}>
-                  +{taskLabelList.length - 2}
-                </span>
-              )}
-            </div>
 
-            {/* Assignee */}
-            <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
-              {agent ? (
-                <>
-                  <AgentAvatar agent={agent} size={18} borderRadius={5} />
-                  <span style={{ fontSize: '11px', color: 'var(--text-secondary)', whiteSpace: 'nowrap' }}>
-                    {agent.name}
+                {/* Title */}
+                <div style={{ display: 'flex', alignItems: 'center', gap: '6px', overflow: 'hidden' }}>
+                  <span
+                    style={{
+                      fontSize: '13px',
+                      fontWeight: 500,
+                      color: 'var(--text-primary)',
+                      overflow: 'hidden',
+                      textOverflow: 'ellipsis',
+                      whiteSpace: 'nowrap',
+                    }}
+                  >
+                    {task.title}
                   </span>
-                </>
-              ) : (
-                <span style={{ fontSize: '11px', color: 'var(--text-quaternary)' }}>—</span>
-              )}
-            </div>
+                  {isExecuting && (
+                    <span style={{ display: 'inline-flex', alignItems: 'center', gap: '3px', flexShrink: 0 }}>
+                      <span
+                        style={{
+                          width: 6,
+                          height: 6,
+                          borderRadius: '50%',
+                          background: 'var(--system-cyan, #32ADE6)',
+                          animation: 'pulse 1.5s ease-in-out infinite',
+                        }}
+                      />
+                      <span style={{ fontSize: '9px', fontWeight: 600, color: 'var(--system-cyan, #32ADE6)' }}>Live</span>
+                    </span>
+                  )}
+                  {task.checkoutAgentId && (
+                    <span
+                      style={{
+                        fontSize: '9px',
+                        fontWeight: 600,
+                        color: 'var(--system-orange)',
+                        background: 'color-mix(in srgb, var(--system-orange) 10%, transparent)',
+                        borderRadius: '3px',
+                        padding: '0 3px',
+                        flexShrink: 0,
+                      }}
+                    >
+                      🔒
+                    </span>
+                  )}
+                </div>
 
-            {/* Priority */}
-            <PriorityIcon priority={task.priority} size={14} />
+                {/* Labels */}
+                <div style={{ display: 'flex', gap: '3px', flexWrap: 'nowrap', overflow: 'hidden' }}>
+                  {taskLabelList.slice(0, 2).map(l => (
+                    <span
+                      key={l.id}
+                      style={{
+                        fontSize: '10px',
+                        fontWeight: 500,
+                        padding: '0 5px',
+                        borderRadius: '3px',
+                        background: `color-mix(in srgb, ${l.color} 15%, transparent)`,
+                        color: l.color,
+                        lineHeight: '16px',
+                        whiteSpace: 'nowrap',
+                      }}
+                    >
+                      {l.name}
+                    </span>
+                  ))}
+                  {taskLabelList.length > 2 && (
+                    <span style={{ fontSize: '10px', color: 'var(--text-quaternary)' }}>
+                      +{taskLabelList.length - 2}
+                    </span>
+                  )}
+                </div>
 
-            {/* Created */}
-            <span
-              style={{
-                fontSize: '11px',
-                color: 'var(--text-quaternary)',
-                whiteSpace: 'nowrap',
-              }}
-              title={new Date(task.createdAt).toLocaleString()}
-            >
-              {relativeTime(task.createdAt)}
-            </span>
-          </div>
-        )
-      })}
+                {/* Assignee */}
+                <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+                  {agent ? (
+                    <>
+                      <AgentAvatar agent={agent} size={18} borderRadius={5} />
+                      <span style={{ fontSize: '11px', color: 'var(--text-secondary)', whiteSpace: 'nowrap' }}>
+                        {agent.name}
+                      </span>
+                    </>
+                  ) : (
+                    <span style={{ fontSize: '11px', color: 'var(--text-quaternary)' }}>—</span>
+                  )}
+                </div>
+
+                {/* Priority */}
+                <PriorityIcon priority={task.priority} size={14} />
+
+                {/* Date */}
+                <span
+                  style={{
+                    fontSize: '11px',
+                    color: 'var(--text-quaternary)',
+                    whiteSpace: 'nowrap',
+                  }}
+                  title={new Date(task.createdAt).toLocaleString()}
+                >
+                  {formatDate(task.createdAt)}
+                </span>
+              </div>
+            )
+          })}
+        </div>
+      ))}
     </div>
   )
 }

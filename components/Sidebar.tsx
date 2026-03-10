@@ -5,6 +5,7 @@ import { NavLinks } from '@/components/NavLinks';
 import { ThemeToggle } from '@/components/ThemeToggle';
 import { MobileSidebar } from '@/components/MobileSidebar';
 import { GlobalSearch, SearchTrigger } from '@/components/GlobalSearch';
+import { WorkspaceSwitcher } from '@/components/WorkspaceSwitcher';
 import { useSettings } from '@/app/settings-provider';
 
 /**
@@ -87,6 +88,11 @@ export function Sidebar() {
               </div>
             </div>
           </div>
+        </div>
+
+        {/* Workspace switcher */}
+        <div className="px-3 pb-1" style={{ flexShrink: 0 }}>
+          <WorkspaceSwitcher />
         </div>
 
         {/* Search trigger */}

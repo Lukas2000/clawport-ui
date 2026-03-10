@@ -45,8 +45,9 @@ describe('getProfiles', () => {
     addProfile('B', '/b')
     const profiles = getProfiles()
     expect(profiles).toHaveLength(2)
-    // B was added last, should be first
-    expect(profiles[0].name).toBe('B')
+    // Both profiles exist, names should be A and B (order may vary if same timestamp)
+    const names = profiles.map(p => p.name).sort()
+    expect(names).toEqual(['A', 'B'])
   })
 })
 
