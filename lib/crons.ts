@@ -41,7 +41,13 @@ export async function getCrons(): Promise<CronJob[]> {
       : parsed.jobs ?? parsed.data ?? []
 
     // Load known agent IDs for dynamic cron-to-agent matching
-    const agentIds = loadRegistry().map(a => a.id)
+    // Include legacyIds so cron jobs named after the old directory-based ID still match
+    const registry = loadRegistry()
+    const agentIds = registry.map(a => a.id)
+    // Build a map: legacyId → canonical id (for cron jobs named after old IDs)
+    const legacyIdMap = new Map<string, string>(
+      registry.filter(a => a.legacyId).map(a => [a.legacyId!, a.id])
+    )
 
     return jobs.map((job: unknown) => {
       const j = job as Record<string, unknown>
@@ -98,7 +104,13 @@ export async function getCrons(): Promise<CronJob[]> {
         lastRun,
         nextRun,
         lastError,
-        agentId: matchAgent(name, agentIds),
+        agentId: (() => {
+          // Try canonical IDs first, then fall back to legacy IDs
+          const match = matchAgent(name, agentIds)
+          if (match) return match
+          const legacyMatch = matchAgent(name, [...legacyIdMap.keys()])
+          return legacyMatch ? (legacyIdMap.get(legacyMatch) ?? null) : null
+        })(),
         description: typeof j.description === 'string' ? j.description : null,
         enabled: j.enabled !== false,
         delivery,
