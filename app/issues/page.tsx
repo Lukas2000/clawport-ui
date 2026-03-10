@@ -196,14 +196,14 @@ export default function IssuesPage() {
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'space-between',
-          padding: '16px 20px 12px',
+          padding: '12px 16px 8px',
           flexShrink: 0,
           gap: '12px',
           flexWrap: 'wrap',
         }}
       >
         <div>
-          <h1 style={{ fontSize: '20px', fontWeight: 700, color: 'var(--text-primary)', margin: 0 }}>
+          <h1 style={{ fontSize: '16px', fontWeight: 600, color: 'var(--text-primary)', margin: 0 }}>
             Issues
           </h1>
           <p style={{ fontSize: '12px', color: 'var(--text-tertiary)', marginTop: '2px' }}>
@@ -428,8 +428,8 @@ export default function IssuesPage() {
               display: 'flex',
               alignItems: 'center',
               gap: '5px',
-              padding: '6px 14px',
-              borderRadius: '8px',
+              padding: '5px 12px',
+              borderRadius: '5px',
               border: 'none',
               background: 'var(--accent)',
               color: 'white',

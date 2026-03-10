@@ -3,6 +3,7 @@
 import { useState, useRef, useEffect } from 'react'
 import Link from 'next/link'
 import type { Agent } from '@/lib/types'
+import { AgentAvatar } from '@/components/AgentAvatar'
 
 interface TeamCardProps {
   agent: Agent
@@ -40,21 +41,7 @@ export function TeamCard({ agent, onEdit, onDelete, onChangeManager }: TeamCardP
     >
       {/* Header row */}
       <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-        <div
-          style={{
-            width: 40,
-            height: 40,
-            borderRadius: 10,
-            background: agent.color + '22',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            fontSize: 20,
-            flexShrink: 0,
-          }}
-        >
-          {agent.emoji}
-        </div>
+        <AgentAvatar agent={agent} size={40} borderRadius={8} />
         <div style={{ minWidth: 0, flex: 1 }}>
           <div style={{ fontSize: 14, fontWeight: 600, color: 'var(--text-primary)' }}>
             {agent.name}

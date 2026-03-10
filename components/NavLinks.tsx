@@ -185,7 +185,7 @@ export function NavLinks() {
 
   return (
     <nav className="flex-1 flex flex-col min-h-0" aria-label="Main navigation">
-      <div className="px-3 pt-2 pb-3 flex flex-col gap-3" style={{ overflowY: 'auto', flex: 1 }}>
+      <div className="px-3 pt-2 pb-3 flex flex-col gap-2" style={{ overflowY: 'auto', flex: 1 }}>
         {NAV_SECTIONS.map((section) => (
           <div key={section.label}>
             <div
@@ -196,7 +196,7 @@ export function NavLinks() {
                 color: 'var(--text-tertiary)',
                 textTransform: 'uppercase',
                 padding: '0 8px',
-                marginBottom: '4px',
+                marginBottom: '2px',
               }}
             >
               {section.label}
@@ -221,14 +221,14 @@ export function NavLinks() {
                     style={{
                       display: 'flex',
                       alignItems: 'center',
-                      gap: '10px',
-                      minHeight: '36px',
-                      padding: '0 10px 0 12px',
-                      borderRadius: '8px',
+                      gap: '8px',
+                      minHeight: '30px',
+                      padding: '0 8px',
+                      borderRadius: '4px',
                       fontSize: '13px',
-                      fontWeight: isActive ? 600 : 500,
-                      color: isActive ? 'var(--accent)' : 'var(--text-secondary)',
-                      background: isActive ? 'var(--accent-fill)' : 'transparent',
+                      fontWeight: isActive ? 500 : 400,
+                      color: isActive ? 'var(--text-primary)' : 'var(--text-secondary)',
+                      background: isActive ? 'rgba(255,255,255,0.06)' : 'transparent',
                       textDecoration: 'none',
                       transition: 'all 100ms var(--ease-smooth)',
                     }}
@@ -237,7 +237,7 @@ export function NavLinks() {
                       size={16}
                       style={{
                         flexShrink: 0,
-                        color: isActive ? 'var(--accent)' : 'var(--text-tertiary)',
+                        color: isActive ? 'var(--text-primary)' : 'var(--text-tertiary)',
                         transition: 'color 100ms var(--ease-smooth)',
                       }}
                     />
@@ -255,23 +255,23 @@ export function NavLinks() {
       <div
         style={{
           borderTop: '1px solid var(--separator)',
-          padding: '10px 16px',
+          padding: '8px 12px',
           flexShrink: 0,
         }}
       >
-        <div className="flex items-center gap-2.5">
+        <div className="flex items-center gap-2">
           <div
             style={{
-              width: '28px',
-              height: '28px',
-              borderRadius: '7px',
-              background: 'var(--accent-fill)',
+              width: '24px',
+              height: '24px',
+              borderRadius: '5px',
+              background: 'var(--fill-quaternary)',
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
-              fontSize: '11px',
-              fontWeight: 700,
-              color: 'var(--accent)',
+              fontSize: '10px',
+              fontWeight: 600,
+              color: 'var(--text-secondary)',
               flexShrink: 0,
               letterSpacing: '-0.02em',
             }}
@@ -281,7 +281,7 @@ export function NavLinks() {
           <div style={{ minWidth: 0 }}>
             <div
               style={{
-                fontSize: '13px',
+                fontSize: '12px',
                 fontWeight: 500,
                 color: 'var(--text-primary)',
                 overflow: 'hidden',
@@ -293,7 +293,7 @@ export function NavLinks() {
             </div>
             <div
               style={{
-                fontSize: '11px',
+                fontSize: '10px',
                 color: 'var(--text-tertiary)',
               }}
             >

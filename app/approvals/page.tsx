@@ -99,7 +99,7 @@ export default function ApprovalsPage() {
               <CheckCircle size={16} style={{ color: pendingCount > 0 ? 'var(--system-orange)' : 'var(--system-green)' }} />
             </div>
             <div>
-              <h1 style={{ fontSize: '20px', fontWeight: 700, color: 'var(--text-primary)', letterSpacing: '-0.3px', margin: 0 }}>
+              <h1 style={{ fontSize: '16px', fontWeight: 600, color: 'var(--text-primary)', letterSpacing: '-0.2px', margin: 0 }}>
                 Approvals
               </h1>
               <p style={{ fontSize: '12px', color: pendingCount > 0 ? 'var(--system-orange)' : 'var(--text-tertiary)', margin: 0, fontWeight: pendingCount > 0 ? 600 : 400 }}>

@@ -4,6 +4,7 @@ import { useEffect, useState, useCallback } from 'react'
 import type { Project, Agent } from '@/lib/types'
 import { Skeleton } from '@/components/ui/skeleton'
 import { EmptyState } from '@/components/ui/EmptyState'
+import { AgentAvatar } from '@/components/AgentAvatar'
 import { FolderKanban } from 'lucide-react'
 
 const STATUS_COLORS: Record<string, string> = {
@@ -42,7 +43,7 @@ export default function ProjectsPage() {
     <div style={{ padding: '24px', maxWidth: '1100px', margin: '0 auto', height: '100%', overflowY: 'auto' }}>
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '24px' }}>
         <div>
-          <h1 style={{ fontSize: '22px', fontWeight: 700, color: 'var(--text-primary)', margin: 0 }}>
+          <h1 style={{ fontSize: '16px', fontWeight: 600, color: 'var(--text-primary)', margin: 0 }}>
             Projects
           </h1>
           <p style={{ fontSize: '13px', color: 'var(--text-tertiary)', marginTop: '2px' }}>
@@ -159,7 +160,7 @@ function ProjectCard({ project, agent, onUpdate }: { project: Project; agent?: A
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginTop: '4px' }}>
         {agent ? (
           <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-            <span style={{ fontSize: '16px' }}>{agent.emoji}</span>
+            <AgentAvatar agent={agent} size={16} borderRadius={4} />
             <span style={{ fontSize: '12px', color: 'var(--text-secondary)' }}>{agent.name}</span>
           </div>
         ) : (

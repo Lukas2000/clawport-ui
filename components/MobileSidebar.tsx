@@ -62,12 +62,12 @@ export function MobileSidebar({
           left: 0,
           right: 0,
           zIndex: 60,
-          height: '48px',
-          gap: '12px',
+          height: '44px',
+          gap: '10px',
           padding: '0 12px',
           background: 'var(--sidebar-bg)',
-          backdropFilter: 'blur(40px) saturate(180%)',
-          WebkitBackdropFilter: 'blur(40px) saturate(180%)',
+          backdropFilter: 'var(--sidebar-backdrop)',
+          WebkitBackdropFilter: 'var(--sidebar-backdrop)',
           borderBottom: '1px solid var(--separator)',
         }}
       >
@@ -110,11 +110,11 @@ export function MobileSidebar({
             />
           ) : (
             <img
-              src="/clawport-logo.png"
+              src="/clawport-logo.svg"
               alt=""
               style={{
-                width: '48px',
-                height: '48px',
+                width: '24px',
+                height: '24px',
                 objectFit: 'contain',
                 flexShrink: 0,
               }}
@@ -122,7 +122,7 @@ export function MobileSidebar({
           )}
           <span
             style={{
-              fontSize: '15px',
+              fontSize: '14px',
               fontWeight: 600,
               color: 'var(--text-primary)',
               letterSpacing: '-0.2px',
@@ -175,28 +175,27 @@ export function MobileSidebar({
         aria-hidden={!open}
       >
         {/* App icon + title */}
-        <div className="px-4 pt-5 pb-3">
-          <div className="flex items-center gap-3">
+        <div className="px-3 pt-3 pb-2">
+          <div className="flex items-center gap-2.5">
             {settings.portalIcon ? (
               <img
                 src={settings.portalIcon}
                 alt=""
                 style={{
-                  width: '36px',
-                  height: '36px',
-                  borderRadius: '10px',
+                  width: '28px',
+                  height: '28px',
+                  borderRadius: '6px',
                   objectFit: 'cover',
-                  boxShadow: 'var(--shadow-card)',
                   flexShrink: 0,
                 }}
               />
             ) : (
               <img
-                src="/clawport-logo.png"
+                src="/clawport-logo.svg"
                 alt=""
                 style={{
-                  width: '72px',
-                  height: '72px',
+                  width: '28px',
+                  height: '28px',
                   objectFit: 'contain',
                   flexShrink: 0,
                 }}
@@ -205,9 +204,9 @@ export function MobileSidebar({
             <div>
               <div
                 style={{
-                  fontSize: '17px',
+                  fontSize: '14px',
                   fontWeight: 600,
-                  letterSpacing: '-0.3px',
+                  letterSpacing: '-0.2px',
                   color: 'var(--text-primary)',
                 }}
               >
@@ -217,8 +216,8 @@ export function MobileSidebar({
               </div>
               <div
                 style={{
-                  fontSize: '12px',
-                  color: 'var(--text-secondary)',
+                  fontSize: '11px',
+                  color: 'var(--text-tertiary)',
                   letterSpacing: '0.01em',
                 }}
               >

@@ -112,10 +112,10 @@ export default function AuditPage() {
               </div>
               <div>
                 <h1 style={{
-                  fontSize: '20px',
-                  fontWeight: 700,
+                  fontSize: '16px',
+                  fontWeight: 600,
                   color: 'var(--text-primary)',
-                  letterSpacing: '-0.3px',
+                  letterSpacing: '-0.2px',
                   margin: 0,
                 }}>
                   Audit Trail

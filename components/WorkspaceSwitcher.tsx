@@ -128,7 +128,7 @@ export function WorkspaceSwitcher() {
               zIndex: 100,
               background: 'var(--material-elevated, var(--material-regular))',
               border: '1px solid var(--separator)',
-              borderRadius: '10px',
+              borderRadius: '6px',
               boxShadow: '0 8px 32px rgba(0,0,0,0.25)',
               overflow: 'hidden',
               minWidth: '200px',

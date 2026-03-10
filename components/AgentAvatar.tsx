@@ -3,6 +3,7 @@
 import type { CSSProperties } from 'react'
 import type { Agent } from '@/lib/types'
 import { useSettings } from '@/app/settings-provider'
+import { AgentRoleIcon } from '@/components/AgentRoleIcon'
 
 interface AgentAvatarProps {
   agent: Agent
@@ -14,7 +15,7 @@ interface AgentAvatarProps {
 export function AgentAvatar({ agent, size, borderRadius, style }: AgentAvatarProps) {
   const { getAgentDisplay } = useSettings()
   const display = getAgentDisplay(agent)
-  const radius = borderRadius ?? Math.round(size * 0.27)
+  const radius = borderRadius ?? Math.round(size * 0.22)
 
   if (display.profileImage) {
     return (
@@ -33,22 +34,28 @@ export function AgentAvatar({ agent, size, borderRadius, style }: AgentAvatarPro
     )
   }
 
+  // Use role-based SVG icon instead of emoji
+  const iconSize = Math.round(size * 0.55)
+
   return (
     <div
       style={{
         width: size,
         height: size,
         borderRadius: radius,
-        background: display.emojiOnly ? 'transparent' : `${agent.color}20`,
+        background: `${agent.color}15`,
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'center',
-        fontSize: Math.round(size * 0.55),
         flexShrink: 0,
         ...style,
       }}
     >
-      {display.emoji}
+      <AgentRoleIcon
+        title={agent.title ?? ''}
+        size={iconSize}
+        color={agent.color}
+      />
     </div>
   )
 }

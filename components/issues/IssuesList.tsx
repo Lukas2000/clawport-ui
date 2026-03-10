@@ -128,7 +128,7 @@ function groupTasks(tasks: Task[], groupBy: GroupBy, agents: Agent[]): TaskGroup
       const agent = agentMap.get(agentId)
       groups.push({
         key: agentId,
-        label: agent ? `${agent.emoji} ${agent.name}` : agentId,
+        label: agent ? agent.name : agentId,
         tasks: agentTasks,
       })
     }
@@ -204,9 +204,10 @@ export function IssuesList({
                 alignItems: 'center',
                 gap: '6px',
                 width: '100%',
-                padding: '8px 12px',
+                padding: '6px 12px 6px 16px',
                 border: 'none',
-                background: 'var(--fill-quaternary)',
+                borderBottom: '1px solid var(--separator)',
+                background: 'transparent',
                 cursor: 'pointer',
                 textAlign: 'left',
               }}
@@ -257,15 +258,15 @@ export function IssuesList({
                   gridTemplateColumns: '18px 70px 1fr auto auto auto auto',
                   gap: '8px',
                   alignItems: 'center',
-                  padding: '8px 12px 8px 28px',
+                  padding: '6px 16px',
                   cursor: 'pointer',
                   background: isSelected ? 'var(--accent-fill)' : 'transparent',
-                  borderBottom: '1px solid var(--separator-light, var(--separator))',
+                  borderBottom: '1px solid var(--separator)',
                   transition: 'background 80ms',
-                  minHeight: '40px',
+                  minHeight: '34px',
                 }}
                 onMouseEnter={(e) => {
-                  if (!isSelected) (e.currentTarget.style.background = 'var(--fill-quaternary)')
+                  if (!isSelected) (e.currentTarget.style.background = 'rgba(255,255,255,0.03)')
                 }}
                 onMouseLeave={(e) => {
                   if (!isSelected) (e.currentTarget.style.background = 'transparent')

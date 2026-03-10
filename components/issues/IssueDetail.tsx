@@ -40,7 +40,7 @@ function formatDate(ts: string): string {
 
 function PropertyRow({ label, children }: { label: string; children: React.ReactNode }) {
   return (
-    <div style={{ display: 'flex', alignItems: 'center', gap: '8px', minHeight: '32px' }}>
+    <div style={{ display: 'flex', alignItems: 'center', gap: '8px', minHeight: '28px' }}>
       <span
         style={{
           fontSize: '11px',
@@ -150,7 +150,7 @@ export function IssueDetail({
   return (
     <div
       style={{
-        width: '380px',
+        width: '360px',
         height: '100%',
         borderLeft: '1px solid var(--separator)',
         background: 'var(--bg)',

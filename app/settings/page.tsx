@@ -137,11 +137,10 @@ export default function SettingsPage() {
       >
         {/* Page header */}
         <h1
-          className="page-title"
           style={{
-            fontSize: 'var(--text-title1)',
-            fontWeight: 'var(--weight-bold)',
-            letterSpacing: 'var(--tracking-tight)',
+            fontSize: '16px',
+            fontWeight: 600,
+            letterSpacing: '-0.2px',
             color: 'var(--text-primary)',
             margin: '0 0 var(--space-8)',
           }}
@@ -189,8 +188,8 @@ export default function SettingsPage() {
                     aria-label={preset.label}
                     title={preset.label}
                     style={{
-                      width: 32,
-                      height: 32,
+                      width: 28,
+                      height: 28,
                       borderRadius: '50%',
                       background: preset.value,
                       border: isActive ? '2px solid var(--text-primary)' : '2px solid transparent',

@@ -41,7 +41,7 @@ export default function CalendarPage() {
 
   return (
     <div style={{ padding: '24px', height: '100%', overflowY: 'auto' }}>
-      <h1 style={{ fontSize: '22px', fontWeight: 700, color: 'var(--text-primary)', marginBottom: '4px' }}>
+      <h1 style={{ fontSize: '16px', fontWeight: 600, color: 'var(--text-primary)', marginBottom: '4px' }}>
         Calendar
       </h1>
       <p style={{ fontSize: '13px', color: 'var(--text-tertiary)', marginBottom: '20px' }}>

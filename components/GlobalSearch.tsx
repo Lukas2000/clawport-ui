@@ -99,9 +99,9 @@ export function SearchTrigger({ onClick }: { onClick: () => void }) {
         display: 'flex',
         alignItems: 'center',
         gap: '8px',
-        height: '36px',
-        padding: '0 12px',
-        borderRadius: '8px',
+        height: '30px',
+        padding: '0 10px',
+        borderRadius: '4px',
         border: '1px solid var(--separator)',
         background: 'var(--fill-quaternary)',
         color: 'var(--text-tertiary)',
@@ -447,8 +447,8 @@ export function GlobalSearch() {
           position: 'absolute',
           inset: 0,
           background: 'rgba(0,0,0,0.5)',
-          backdropFilter: 'blur(4px)',
-          WebkitBackdropFilter: 'blur(4px)',
+          backdropFilter: 'blur(2px)',
+          WebkitBackdropFilter: 'blur(2px)',
         }}
         onClick={() => setOpen(false)}
         aria-hidden="true"
@@ -464,18 +464,18 @@ export function GlobalSearch() {
         style={{
           position: 'relative',
           width: '100%',
-          maxWidth: '560px',
+          maxWidth: '520px',
           margin: '0 16px',
           borderRadius: 'var(--radius-xl)',
           background: 'var(--material-regular)',
           border: '1px solid var(--separator)',
           boxShadow: 'var(--shadow-overlay)',
-          backdropFilter: 'blur(40px) saturate(180%)',
-          WebkitBackdropFilter: 'blur(40px) saturate(180%)',
+          backdropFilter: 'blur(12px) saturate(120%)',
+          WebkitBackdropFilter: 'blur(12px) saturate(120%)',
           overflow: 'hidden',
           display: 'flex',
           flexDirection: 'column',
-          maxHeight: '520px',
+          maxHeight: '480px',
         }}
       >
         {/* Search input */}
@@ -484,7 +484,7 @@ export function GlobalSearch() {
             display: 'flex',
             alignItems: 'center',
             gap: '10px',
-            padding: '14px 16px',
+            padding: '10px 14px',
             borderBottom: '1px solid var(--separator)',
           }}
         >
@@ -505,7 +505,7 @@ export function GlobalSearch() {
               background: 'transparent',
               border: 'none',
               outline: 'none',
-              fontSize: '15px',
+              fontSize: '14px',
               color: 'var(--text-primary)',
               fontFamily: 'inherit',
             }}
@@ -560,7 +560,7 @@ export function GlobalSearch() {
                   letterSpacing: '0.06em',
                   textTransform: 'uppercase',
                   color: 'var(--text-tertiary)',
-                  padding: '6px 8px 4px',
+                  padding: '4px 8px 2px',
                 }}
               >
                 {group.category}
@@ -585,12 +585,12 @@ export function GlobalSearch() {
                       alignItems: 'center',
                       gap: '10px',
                       width: '100%',
-                      minHeight: '44px',
-                      padding: '8px 10px',
-                      borderRadius: '8px',
+                      minHeight: '36px',
+                      padding: '6px 8px',
+                      borderRadius: '4px',
                       border: 'none',
                       background: isActive
-                        ? 'var(--accent-fill)'
+                        ? 'rgba(255,255,255,0.06)'
                         : 'transparent',
                       cursor: 'pointer',
                       textAlign: 'left',
@@ -605,8 +605,8 @@ export function GlobalSearch() {
                   >
                     <span
                       style={{
-                        width: '28px',
-                        height: '28px',
+                        width: '24px',
+                        height: '24px',
                         display: 'flex',
                         alignItems: 'center',
                         justifyContent: 'center',
@@ -664,7 +664,7 @@ export function GlobalSearch() {
             alignItems: 'center',
             justifyContent: 'center',
             gap: '16px',
-            padding: '8px 16px',
+            padding: '6px 14px',
             borderTop: '1px solid var(--separator)',
             fontSize: '11px',
             color: 'var(--text-quaternary)',

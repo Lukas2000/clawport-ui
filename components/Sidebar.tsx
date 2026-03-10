@@ -27,38 +27,36 @@ export function Sidebar() {
       <aside
         className="hidden md:flex md:flex-col overflow-hidden"
         style={{
-          width: '220px',
+          width: '200px',
           flexShrink: 0,
-          background: 'linear-gradient(180deg, var(--sidebar-bg), color-mix(in srgb, var(--sidebar-bg) 95%, var(--bg)))',
-          backdropFilter: 'blur(40px) saturate(180%)',
-          WebkitBackdropFilter: 'blur(40px) saturate(180%)',
-          borderRight: '1px solid color-mix(in srgb, var(--separator) 60%, transparent)',
-          boxShadow: '1px 0 8px rgba(0,0,0,0.1)',
+          background: 'var(--sidebar-bg)',
+          backdropFilter: 'var(--sidebar-backdrop)',
+          WebkitBackdropFilter: 'var(--sidebar-backdrop)',
+          borderRight: '1px solid var(--separator)',
         }}
       >
         {/* App icon + title */}
-        <div className="px-4 pt-5 pb-3" style={{ flexShrink: 0 }}>
-          <div className="flex items-center gap-3">
+        <div className="px-3 pt-3 pb-2" style={{ flexShrink: 0 }}>
+          <div className="flex items-center gap-2.5">
             {settings.portalIcon ? (
               <img
                 src={settings.portalIcon}
                 alt=""
                 style={{
-                  width: '36px',
-                  height: '36px',
-                  borderRadius: '10px',
+                  width: '28px',
+                  height: '28px',
+                  borderRadius: '6px',
                   objectFit: 'cover',
-                  boxShadow: 'var(--shadow-card)',
                   flexShrink: 0,
                 }}
               />
             ) : (
               <img
-                src="/clawport-logo.png"
+                src="/clawport-logo.svg"
                 alt=""
                 style={{
-                  width: '72px',
-                  height: '72px',
+                  width: '28px',
+                  height: '28px',
                   objectFit: 'contain',
                   flexShrink: 0,
                 }}
@@ -67,9 +65,9 @@ export function Sidebar() {
             <div>
               <div
                 style={{
-                  fontSize: '17px',
+                  fontSize: '14px',
                   fontWeight: 600,
-                  letterSpacing: '-0.3px',
+                  letterSpacing: '-0.2px',
                   color: 'var(--text-primary)',
                 }}
               >
@@ -79,8 +77,8 @@ export function Sidebar() {
               </div>
               <div
                 style={{
-                  fontSize: '12px',
-                  color: 'var(--text-secondary)',
+                  fontSize: '11px',
+                  color: 'var(--text-tertiary)',
                   letterSpacing: '0.01em',
                 }}
               >

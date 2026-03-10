@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react'
 import { Users, CircleDot, DollarSign, CheckCircle, Target } from 'lucide-react'
 import { MetricCard } from './MetricCard'
 import { IssueDistributionChart } from './IssueDistributionChart'
+import { AgentAvatar } from '@/components/AgentAvatar'
 import type { Task, Agent, Goal, AuditEntry } from '@/lib/types'
 
 const STATUS_CHART_CONFIG: Record<string, { color: string; label: string }> = {
@@ -84,13 +85,13 @@ export function DashboardView() {
     return agents.find(a => a.id === id)?.name ?? id
   }
 
-  function agentEmoji(id: string | null): string {
-    if (!id) return ''
-    return agents.find(a => a.id === id)?.emoji ?? ''
+  function agentById(id: string | null): Agent | undefined {
+    if (!id) return undefined
+    return agents.find(a => a.id === id)
   }
 
   return (
-    <div style={{ padding: '72px 24px 24px', maxWidth: '960px', margin: '0 auto', display: 'flex', flexDirection: 'column', gap: '24px' }}>
+    <div style={{ padding: '16px 20px 24px', maxWidth: '960px', margin: '0 auto', display: 'flex', flexDirection: 'column', gap: '20px' }}>
       {/* Metric cards */}
       <div style={{ display: 'flex', gap: '12px', flexWrap: 'wrap' }}>
         <MetricCard
@@ -128,7 +129,7 @@ export function DashboardView() {
           style={{
             flex: '1 1 400px',
             padding: '16px 20px',
-            borderRadius: '12px',
+            borderRadius: '8px',
             border: '1px solid var(--separator)',
             background: 'var(--material)',
             minHeight: '280px',
@@ -165,6 +166,9 @@ export function DashboardView() {
                     }}
                   />
                   {/* Actor label */}
+                  {entry.actorType === 'agent' && entry.agentId && agentById(entry.agentId) && (
+                    <AgentAvatar agent={agentById(entry.agentId)!} size={14} borderRadius={3} />
+                  )}
                   <span style={{
                     fontSize: '11px',
                     fontWeight: 600,
@@ -173,7 +177,7 @@ export function DashboardView() {
                     minWidth: '50px',
                   }}>
                     {entry.actorType === 'agent' && entry.agentId
-                      ? `${agentEmoji(entry.agentId)} ${agentName(entry.agentId)}`
+                      ? agentName(entry.agentId)
                       : entry.actorType === 'operator' ? 'You' : 'System'}
                   </span>
                   {/* Action */}
@@ -212,7 +216,7 @@ export function DashboardView() {
           style={{
             flex: '1 1 400px',
             padding: '16px 20px',
-            borderRadius: '12px',
+            borderRadius: '8px',
             border: '1px solid var(--separator)',
             background: 'var(--material)',
             minHeight: '280px',
@@ -256,9 +260,7 @@ export function DashboardView() {
                       {t.title}
                     </span>
                     {agent && (
-                      <span style={{ fontSize: '11px', flexShrink: 0 }} title={agent.name}>
-                        {agent.emoji}
-                      </span>
+                      <AgentAvatar agent={agent} size={16} borderRadius={4} />
                     )}
                     <span style={{
                       fontSize: '10px',
@@ -289,7 +291,7 @@ export function DashboardView() {
           style={{
             flex: '1 1 300px',
             padding: '16px 20px',
-            borderRadius: '12px',
+            borderRadius: '8px',
             border: '1px solid var(--separator)',
             background: 'var(--material)',
           }}
@@ -305,7 +307,7 @@ export function DashboardView() {
           style={{
             flex: '1 1 300px',
             padding: '16px 20px',
-            borderRadius: '12px',
+            borderRadius: '8px',
             border: '1px solid var(--separator)',
             background: 'var(--material)',
           }}

@@ -742,8 +742,8 @@ export default function CronsPage() {
         className="sticky top-0 z-10 flex-shrink-0"
         style={{
           background: "var(--material-regular)",
-          backdropFilter: "blur(40px) saturate(180%)",
-          WebkitBackdropFilter: "blur(40px) saturate(180%)",
+          backdropFilter: "blur(12px) saturate(120%)",
+          WebkitBackdropFilter: "blur(12px) saturate(120%)",
           borderBottom: "1px solid var(--separator)",
         }}
       >

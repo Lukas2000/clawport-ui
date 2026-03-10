@@ -33,7 +33,7 @@ export function ThemeToggle() {
   );
 
   return (
-    <div style={{ padding: '8px 16px 12px', flexShrink: 0 }}>
+    <div style={{ padding: '6px 12px 10px', flexShrink: 0 }}>
       <div
         style={{
           fontSize: '11px',
@@ -70,9 +70,9 @@ export function ThemeToggle() {
                 display: 'flex',
                 alignItems: 'center',
                 gap: '4px',
-                height: '28px',
-                padding: isActive ? '0 10px' : '0 6px',
-                borderRadius: '14px',
+                height: '24px',
+                padding: isActive ? '0 8px' : '0 5px',
+                borderRadius: '12px',
                 fontSize: '12px',
                 fontWeight: isActive ? 600 : 500,
                 border: 'none',

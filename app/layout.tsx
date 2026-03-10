@@ -33,7 +33,7 @@ export default function RootLayout({
               {/* Main content */}
               <main className="flex-1 h-full overflow-hidden relative">
                 {/* Mobile spacer for fixed header */}
-                <div className="md:hidden" style={{ height: '48px', flexShrink: 0 }} />
+                <div className="md:hidden" style={{ height: '44px', flexShrink: 0 }} />
                 {children}
               </main>
             </div>
