@@ -81,6 +81,37 @@ function slugToName(slug: string): string {
 }
 
 /**
+ * Compute a stable agent ID from the agent's name (parsed from SOUL.md/IDENTITY.md),
+ * falling back to the directory name if no name is found.
+ * This ensures agent IDs remain stable even if roles change.
+ */
+function getAgentNameId(agentsDir: string, dirName: string): string {
+  const soulFile = join(agentsDir, dirName, 'SOUL.md')
+  const identityFile = join(agentsDir, dirName, 'IDENTITY.md')
+
+  // Try IDENTITY.md first (most reliable source)
+  const identityContent = safeRead(identityFile)
+  if (identityContent) {
+    const identity = parseIdentity(identityContent)
+    if (identity.name) {
+      return identity.name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '') || dirName
+    }
+  }
+
+  // Fall back to SOUL.md heading
+  const soulContent = safeRead(soulFile)
+  if (soulContent) {
+    const parsed = parseSoulHeading(soulContent)
+    if (parsed.name) {
+      return parsed.name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '') || dirName
+    }
+  }
+
+  // Last resort: use directory name
+  return dirName
+}
+
+/**
  * Read a file and return its content, or null on any error.
  */
 function safeRead(filePath: string): string | null {
@@ -164,6 +195,12 @@ function discoverAgents(workspacePath: string): AgentEntry[] | null {
   // Need at least a root or agent directories to discover
   if (!hasRoot && allAgentDirs.length === 0) return null
 
+  // Pre-compute agent name IDs for all directories so we can build directReportIds correctly
+  const dirNameToId = new Map<string, string>()
+  for (const dirName of allAgentDirs) {
+    dirNameToId.set(dirName, getAgentNameId(agentsDir, dirName))
+  }
+
   const discovered: AgentEntry[] = []
   let colorIndex = 0
   const directReportIds: string[] = []
@@ -219,7 +256,8 @@ function discoverAgents(workspacePath: string): AgentEntry[] | null {
       const hasSubAgents = existsSync(join(agentsDir, dirName, 'sub-agents'))
       const hasMembers = existsSync(join(agentsDir, dirName, 'members'))
       if (hasSoul || hasSubAgents || hasMembers) {
-        directReportIds.push(dirName)
+        const agentId = dirNameToId.get(dirName) || dirName
+        directReportIds.push(agentId)
       }
     }
   }
@@ -282,6 +320,8 @@ function discoverAgents(workspacePath: string): AgentEntry[] | null {
       continue
     }
 
+    const agentId = dirNameToId.get(dirName) || dirName
+
     const soulFile = join(agentsDir, dirName, 'SOUL.md')
     const hasSoul = existsSync(soulFile)
     const subAgentsDir = join(agentsDir, dirName, 'sub-agents')
@@ -325,7 +365,7 @@ function discoverAgents(workspacePath: string): AgentEntry[] | null {
     ]
 
     for (const sub of subAgentFiles) {
-      const subId = `${dirName}-${basename(sub.fileName, '.md').toLowerCase()}`
+      const subId = `${agentId}-${basename(sub.fileName, '.md').toLowerCase()}`
       subAgentIds.push(subId)
 
       const subParsed = parseSoulHeading(sub.content)
@@ -336,7 +376,7 @@ function discoverAgents(workspacePath: string): AgentEntry[] | null {
         id: subId,
         name: subName,
         title: subTitle,
-        reportsTo: dirName,
+        reportsTo: agentId,
         directReports: [],
         soulPath: null, // sub-agents use non-standard paths, soul loaded differently
         voiceId: null,
@@ -352,7 +392,7 @@ function discoverAgents(workspacePath: string): AgentEntry[] | null {
     const subdirAgents = scanSubdirAgents(join(agentsDir, dirName))
     const existingSubIds = new Set(subAgentIds)
     for (const sub of subdirAgents) {
-      const subId = `${dirName}-${sub.dirName}`
+      const subId = `${agentId}-${sub.dirName}`
       if (existingSubIds.has(subId)) continue
       subAgentIds.push(subId)
       const subParsed = parseSoulHeading(sub.content)
@@ -362,7 +402,7 @@ function discoverAgents(workspacePath: string): AgentEntry[] | null {
         id: subId,
         name: subName,
         title: subTitle,
-        reportsTo: dirName,
+        reportsTo: agentId,
         directReports: [],
         soulPath: `agents/${dirName}/${sub.dirName}/SOUL.md`,
         voiceId: null,
@@ -375,7 +415,7 @@ function discoverAgents(workspacePath: string): AgentEntry[] | null {
     }
 
     discovered.push({
-      id: dirName,
+      id: agentId,
       name,
       title,
       reportsTo: hasRoot ? rootId : null,

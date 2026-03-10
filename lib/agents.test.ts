@@ -535,15 +535,15 @@ describe('auto-discovery from workspace', () => {
     })
 
     const agents = await getAgents()
-    const lumen = agents.find(a => a.id === 'seo-team')!
+    const lumen = agents.find(a => a.id === 'lumen')!
     expect(lumen.name).toBe('LUMEN')
     expect(lumen.title).toBe('SEO Team Director')
-    expect(lumen.directReports).toContain('seo-team-writer')
+    expect(lumen.directReports).toContain('lumen-writer')
 
-    const writer = agents.find(a => a.id === 'seo-team-writer')!
+    const writer = agents.find(a => a.id === 'lumen-writer')!
     expect(writer.name).toBe('WRITER')
     expect(writer.title).toBe('Conversion-Focused Content Creator')
-    expect(writer.reportsTo).toBe('seo-team')
+    expect(writer.reportsTo).toBe('lumen')
   })
 
   it('discovers dirs without SOUL.md if they have sub-agents', async () => {
@@ -600,7 +600,7 @@ describe('auto-discovery from workspace', () => {
 
     const agents = await getAgents()
     expect(agents).toHaveLength(1)
-    expect(agents[0].id).toBe('worker')
+    expect(agents[0].id).toBe('worker-bot')
     expect(agents[0].name).toBe('Worker Bot')
     expect(agents[0].reportsTo).toBeNull()
   })

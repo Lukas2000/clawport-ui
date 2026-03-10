@@ -446,28 +446,28 @@ describe('Existing user (fully configured workspace)', () => {
       expect(root.id).toBe('atlas')
 
       // Research agent
-      const vera = agents.find(a => a.id === 'research')!
+      const vera = agents.find(a => a.id === 'vera')!
       expect(vera.name).toBe('VERA')
       expect(vera.title).toBe('Chief Strategy Officer')
       expect(vera.reportsTo).toBe('atlas')
 
       // Content agent
-      const herald = agents.find(a => a.id === 'content')!
+      const herald = agents.find(a => a.id === 'herald')!
       expect(herald.name).toBe('HERALD')
       expect(herald.title).toBe('Content Director')
       expect(herald.reportsTo).toBe('atlas')
 
       // Sub-agents
-      const scout = agents.find(a => a.id === 'research-scout')!
+      const scout = agents.find(a => a.id === 'vera-scout')!
       expect(scout.name).toBe('SCOUT')
       expect(scout.title).toBe('Trend Finder')
-      expect(scout.reportsTo).toBe('research')
+      expect(scout.reportsTo).toBe('vera')
 
-      // Sub-agent ID is derived from filename (WRITER.md → content-writer)
-      const writer = agents.find(a => a.id === 'content-writer')!
+      // Sub-agent ID is derived from parent ID + filename (WRITER.md → herald-writer)
+      const writer = agents.find(a => a.id === 'herald-writer')!
       expect(writer.name).toBe('QUILL') // name from heading, not filename
       expect(writer.title).toBe('Blog Writer')
-      expect(writer.reportsTo).toBe('content')
+      expect(writer.reportsTo).toBe('herald')
     })
   })
 

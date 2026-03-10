@@ -1,6 +1,8 @@
 'use client'
 
 import { useEffect, useState, useCallback } from 'react'
+import { useRouter } from 'next/navigation'
+import { useSWRConfig } from 'swr'
 import { renderMarkdown } from '@/lib/sanitize'
 import { TemplatePicker } from '@/components/team/TemplatePicker'
 import type { AgentTemplate } from '@/lib/types'
@@ -13,6 +15,8 @@ interface ConfigFileEditorProps {
 }
 
 export function ConfigFileEditor({ agentId, filename, label, onSaveAsTemplate }: ConfigFileEditorProps) {
+  const router = useRouter()
+  const { mutate } = useSWRConfig()
   const [content, setContent] = useState('')
   const [lastModified, setLastModified] = useState<string | null>(null)
   const [isCustom, setIsCustom] = useState(false)
@@ -57,6 +61,12 @@ export function ConfigFileEditor({ agentId, filename, label, onSaveAsTemplate }:
       setSaved(true)
       setIsCustom(true)
       setLastModified(new Date().toISOString())
+
+      // After saving a config file, refresh server-side data and SWR caches
+      // to propagate changes (especially title/role changes from SOUL.md updates)
+      router.refresh()
+      mutate('/api/agents', undefined, { revalidate: true })
+
       setTimeout(() => setSaved(false), 2000)
     } catch (e) {
       setError((e as Error).message)
