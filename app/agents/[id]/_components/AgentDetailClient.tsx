@@ -373,7 +373,7 @@ function SchedulingCard({ agentId, crons }: { agentId: string; crons: CronJob[] 
                 fontWeight: "var(--weight-medium)",
               }}
             >
-              View all crons &rarr;
+              View all scheduled jobs &rarr;
             </Link>
           </div>
         </>
