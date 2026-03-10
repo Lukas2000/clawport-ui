@@ -1,7 +1,7 @@
 'use client'
 
 import { useState } from 'react'
-import type { Agent, IssueLabel, TaskStatus, TaskPriority } from '@/lib/types'
+import type { Agent, IssueLabel, TaskStatus, TaskPriority, Project } from '@/lib/types'
 import { StatusIcon, STATUS_CONFIG } from './StatusIcon'
 import { PriorityIcon, PRIORITY_CONFIG } from './PriorityIcon'
 import { X } from 'lucide-react'
@@ -9,7 +9,7 @@ import { X } from 'lucide-react'
 interface NewIssueDialogProps {
   agents: Agent[]
   labels: IssueLabel[]
-  projects: { id: string; name: string }[]
+  projects: Project[]
   parentId?: string | null
   onSubmit: (data: {
     title: string
@@ -39,6 +39,15 @@ export function NewIssueDialog({
   const [assignedAgentId, setAssignedAgentId] = useState<string | null>(null)
   const [projectId, setProjectId] = useState<string | null>(null)
   const [dueDate, setDueDate] = useState('')
+
+  function handleProjectChange(id: string | null) {
+    setProjectId(id)
+    // Auto-assign to project PM agent if no assignee is set yet
+    if (id && !assignedAgentId) {
+      const project = projects.find(p => p.id === id)
+      if (project?.leadAgentId) setAssignedAgentId(project.leadAgentId)
+    }
+  }
 
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
@@ -233,7 +242,7 @@ export function NewIssueDialog({
               <label style={{ fontSize: '11px', fontWeight: 500, color: 'var(--text-tertiary)' }}>Project</label>
               <select
                 value={projectId ?? ''}
-                onChange={(e) => setProjectId(e.target.value || null)}
+                onChange={(e) => handleProjectChange(e.target.value || null)}
                 style={{
                   padding: '6px 10px',
                   borderRadius: '6px',

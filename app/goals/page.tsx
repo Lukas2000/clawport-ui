@@ -1,28 +1,40 @@
 'use client'
 
 import { useEffect, useState, useCallback } from 'react'
-import type { Goal, Agent } from '@/lib/types'
+import type { Goal, Agent, Project } from '@/lib/types'
 import { GoalTree } from '@/components/goals/GoalTree'
 import { NewGoalDialog } from '@/components/goals/NewGoalDialog'
 import { Skeleton } from '@/components/ui/skeleton'
 import { EmptyState } from '@/components/ui/EmptyState'
 import { Plus, Target } from 'lucide-react'
+import { AgentAvatar } from '@/components/AgentAvatar'
+import Link from 'next/link'
+
+const PROJECT_STATUS_COLORS: Record<string, string> = {
+  planning: 'var(--system-blue)',
+  active: 'var(--system-green)',
+  paused: 'var(--system-orange)',
+  completed: 'var(--system-purple)',
+}
 
 export default function GoalsPage() {
   const [goals, setGoals] = useState<Goal[]>([])
   const [agents, setAgents] = useState<Agent[]>([])
+  const [projects, setProjects] = useState<Project[]>([])
   const [loading, setLoading] = useState(true)
   const [showCreate, setShowCreate] = useState(false)
   const [selectedGoal, setSelectedGoal] = useState<Goal | null>(null)
 
   const loadData = useCallback(async () => {
     try {
-      const [goalsRes, agentsRes] = await Promise.all([
+      const [goalsRes, agentsRes, projectsRes] = await Promise.all([
         fetch('/api/goals'),
         fetch('/api/agents'),
+        fetch('/api/projects'),
       ])
       if (goalsRes.ok) setGoals(await goalsRes.json())
       if (agentsRes.ok) setAgents(await agentsRes.json())
+      if (projectsRes.ok) setProjects(await projectsRes.json())
     } finally {
       setLoading(false)
     }
@@ -301,6 +313,64 @@ export default function GoalsPage() {
                   </div>
                 )}
               </div>
+
+              {/* Linked projects */}
+              {(() => {
+                const linked = projects.filter(p => p.goalId === selectedGoal.id)
+                if (linked.length === 0) return null
+                return (
+                  <div style={{ borderTop: '1px solid var(--separator)', paddingTop: '12px', marginTop: '4px' }}>
+                    <div style={{ fontSize: '11px', fontWeight: 600, color: 'var(--text-tertiary)', marginBottom: '8px', letterSpacing: '0.06em', textTransform: 'uppercase' }}>
+                      Projects
+                    </div>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                      {linked.map(p => {
+                        const pm = agents.find(a => a.id === p.leadAgentId)
+                        const statusColor = PROJECT_STATUS_COLORS[p.status] ?? 'var(--text-tertiary)'
+                        return (
+                          <div
+                            key={p.id}
+                            style={{
+                              background: 'var(--fill-quaternary)',
+                              borderRadius: '6px',
+                              padding: '8px 10px',
+                              display: 'flex',
+                              flexDirection: 'column',
+                              gap: '6px',
+                            }}
+                          >
+                            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '6px' }}>
+                              <span style={{ fontSize: '12px', fontWeight: 600, color: 'var(--text-primary)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                                {p.name}
+                              </span>
+                              <span style={{ fontSize: '10px', fontWeight: 600, padding: '1px 6px', borderRadius: '8px', background: statusColor + '18', color: statusColor, flexShrink: 0 }}>
+                                {p.status}
+                              </span>
+                            </div>
+                            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                              <div style={{ flex: 1, height: '3px', borderRadius: '2px', background: 'var(--fill-secondary)', overflow: 'hidden', marginRight: '8px' }}>
+                                <div style={{ width: `${p.progress}%`, height: '100%', borderRadius: '2px', background: p.progress >= 100 ? '#22C55E' : 'var(--accent)' }} />
+                              </div>
+                              <span style={{ fontSize: '10px', fontFamily: 'var(--font-mono)', color: 'var(--text-tertiary)', flexShrink: 0 }}>{p.progress}%</span>
+                              {pm && (
+                                <div style={{ marginLeft: '8px', flexShrink: 0 }}>
+                                  <AgentAvatar agent={pm} size={14} borderRadius={3} />
+                                </div>
+                              )}
+                            </div>
+                          </div>
+                        )
+                      })}
+                    </div>
+                    <Link
+                      href="/projects"
+                      style={{ display: 'block', fontSize: '11px', color: 'var(--accent)', textDecoration: 'none', marginTop: '8px' }}
+                    >
+                      Manage projects →
+                    </Link>
+                  </div>
+                )
+              })()}
 
               {/* Delete button */}
               <div style={{ marginTop: '24px', paddingTop: '16px', borderTop: '1px solid var(--separator)' }}>

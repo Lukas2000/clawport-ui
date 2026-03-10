@@ -1,16 +1,18 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import type { Task, Agent, IssueLabel, TaskComment, TaskStatus, TaskPriority, Project, AuditEntry } from '@/lib/types'
+import type { Task, Agent, IssueLabel, TaskComment, TaskStatus, TaskPriority, Project, Goal, AuditEntry } from '@/lib/types'
 import { AgentAvatar } from '@/components/AgentAvatar'
 import { StatusIcon, STATUS_CONFIG } from './StatusIcon'
 import { PriorityIcon, PRIORITY_CONFIG } from './PriorityIcon'
 import { X, ChevronRight, MessageSquare, GitBranch, Activity } from 'lucide-react'
+import Link from 'next/link'
 
 interface IssueDetailProps {
   task: Task
   agents: Agent[]
   projects?: Project[]
+  goals?: Goal[]
   allLabels: IssueLabel[]
   taskLabels: IssueLabel[]
   comments: TaskComment[]
@@ -109,6 +111,7 @@ export function IssueDetail({
   task,
   agents,
   projects,
+  goals,
   allLabels,
   taskLabels,
   comments,
@@ -123,6 +126,7 @@ export function IssueDetail({
   const [activityEntries, setActivityEntries] = useState<AuditEntry[]>([])
   const agent = task.assignedAgentId ? agents.find(a => a.id === task.assignedAgentId) ?? null : null
   const project = task.projectId && projects ? projects.find(p => p.id === task.projectId) ?? null : null
+  const goal = project?.goalId && goals ? goals.find(g => g.id === project.goalId) ?? null : null
 
   const statuses: TaskStatus[] = ['backlog', 'todo', 'in-progress', 'review', 'done', 'cancelled']
   const priorities: TaskPriority[] = ['urgent', 'high', 'medium', 'low', 'none']
@@ -373,6 +377,27 @@ export function IssueDetail({
               </span>
             )}
           </PropertyRow>
+
+          {/* Goal context breadcrumb */}
+          {goal && (
+            <PropertyRow label="Goal">
+              <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+                <Link
+                  href="/goals"
+                  style={{ fontSize: '12px', color: 'var(--accent)', textDecoration: 'none', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}
+                >
+                  {goal.title}
+                </Link>
+                <ChevronRight size={10} style={{ color: 'var(--text-quaternary)', flexShrink: 0 }} />
+                <Link
+                  href="/projects"
+                  style={{ fontSize: '12px', color: 'var(--text-secondary)', textDecoration: 'none', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}
+                >
+                  {project?.name}
+                </Link>
+              </div>
+            </PropertyRow>
+          )}
 
           {task.dueDate && (
             <PropertyRow label="Due date">

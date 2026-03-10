@@ -2,11 +2,13 @@
 
 import { useEffect, useState, useCallback } from 'react'
 import { renderMarkdown } from '@/lib/sanitize'
-import type { MissionData, MissionValue } from '@/lib/types'
+import type { MissionData, MissionValue, Goal } from '@/lib/types'
+import Link from 'next/link'
 
 export default function MissionPage() {
   const [data, setData] = useState<MissionData | null>(null)
   const [userMd, setUserMd] = useState<string | null>(null)
+  const [goals, setGoals] = useState<Goal[]>([])
   const [editing, setEditing] = useState<string | null>(null)
   const [draft, setDraft] = useState('')
   const [saving, setSaving] = useState(false)
@@ -18,6 +20,10 @@ export default function MissionPage() {
         setData({ mission: d.mission, vision: d.vision, values: d.values })
         setUserMd(d.userMd ?? null)
       })
+      .catch(() => {})
+    fetch('/api/goals')
+      .then((r) => r.json())
+      .then((d: unknown) => { if (Array.isArray(d)) setGoals(d) })
       .catch(() => {})
   }, [])
 
@@ -197,6 +203,63 @@ export default function MissionPage() {
           ))}
         </div>
       </section>
+
+      {/* Goals summary */}
+      {goals.length > 0 && (
+        <section style={{ marginBottom: '48px' }}>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '16px' }}>
+            <div style={sectionLabelStyle}>Goals Progress</div>
+            <Link href="/goals" style={{ fontSize: '12px', color: 'var(--accent)', textDecoration: 'none' }}>
+              View all goals →
+            </Link>
+          </div>
+          {(() => {
+            const active = goals.filter(g => g.status === 'active')
+            const completed = goals.filter(g => g.status === 'completed')
+            const avgProgress = active.length > 0
+              ? Math.round(active.reduce((sum, g) => sum + g.progress, 0) / active.length)
+              : 0
+            return (
+              <div style={{ background: 'var(--material-regular)', borderRadius: 'var(--radius-lg)', padding: '20px', display: 'flex', flexDirection: 'column', gap: '14px' }}>
+                <div style={{ display: 'flex', gap: '24px' }}>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
+                    <span style={{ fontSize: '24px', fontWeight: 700, color: 'var(--text-primary)', lineHeight: 1 }}>{goals.length}</span>
+                    <span style={{ fontSize: '11px', color: 'var(--text-tertiary)' }}>total goals</span>
+                  </div>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
+                    <span style={{ fontSize: '24px', fontWeight: 700, color: 'var(--system-green)', lineHeight: 1 }}>{completed.length}</span>
+                    <span style={{ fontSize: '11px', color: 'var(--text-tertiary)' }}>completed</span>
+                  </div>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
+                    <span style={{ fontSize: '24px', fontWeight: 700, color: 'var(--accent)', lineHeight: 1 }}>{avgProgress}%</span>
+                    <span style={{ fontSize: '11px', color: 'var(--text-tertiary)' }}>avg progress</span>
+                  </div>
+                </div>
+                {/* Overall progress bar */}
+                <div>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '11px', color: 'var(--text-tertiary)', marginBottom: '4px' }}>
+                    <span>Active goals progress</span>
+                    <span>{active.length} active</span>
+                  </div>
+                  <div style={{ height: '6px', borderRadius: '3px', background: 'var(--fill-quaternary)', overflow: 'hidden' }}>
+                    <div style={{ width: `${avgProgress}%`, height: '100%', borderRadius: '3px', background: avgProgress >= 100 ? '#22C55E' : 'var(--accent)', transition: 'width 300ms' }} />
+                  </div>
+                </div>
+                {/* Top active goals */}
+                {active.slice(0, 3).map(g => (
+                  <div key={g.id} style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                    <span style={{ fontSize: '12px', color: 'var(--text-secondary)', flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{g.title}</span>
+                    <div style={{ width: '80px', height: '4px', borderRadius: '2px', background: 'var(--fill-quaternary)', flexShrink: 0 }}>
+                      <div style={{ width: `${g.progress}%`, height: '100%', borderRadius: '2px', background: g.progress >= 100 ? '#22C55E' : 'var(--accent)' }} />
+                    </div>
+                    <span style={{ fontSize: '10px', fontFamily: 'var(--font-mono)', color: 'var(--text-tertiary)', width: '28px', textAlign: 'right', flexShrink: 0 }}>{g.progress}%</span>
+                  </div>
+                ))}
+              </div>
+            )
+          })()}
+        </section>
+      )}
 
       {/* Company Context (USER.md) */}
       {userMd && (

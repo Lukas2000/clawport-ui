@@ -38,14 +38,19 @@ const NAV_SECTIONS: NavSection[] = [
     items: [
       { href: '/', label: 'Dashboard', icon: Map, badge: 'agents' },
       { href: '/team', label: 'Team', icon: Users },
+    ],
+  },
+  {
+    label: 'Strategy',
+    items: [
       { href: '/mission', label: 'Mission', icon: Compass },
       { href: '/goals', label: 'Goals', icon: Target },
+      { href: '/projects', label: 'Projects', icon: FolderKanban },
     ],
   },
   {
     label: 'Work',
     items: [
-      { href: '/projects', label: 'Projects', icon: FolderKanban },
       { href: '/issues', label: 'Issues', icon: CircleDot },
       { href: '/calendar', label: 'Calendar', icon: Calendar },
     ],
@@ -60,7 +65,7 @@ const NAV_SECTIONS: NavSection[] = [
   {
     label: 'Monitor',
     items: [
-      { href: '/crons', label: 'Scheduling', icon: Clock, badge: 'errors' },
+      { href: '/scheduling', label: 'Scheduling', icon: Clock, badge: 'errors' },
       { href: '/activity', label: 'Activity', icon: Activity },
       { href: '/audit', label: 'Audit', icon: Shield },
       { href: '/costs', label: 'Costs', icon: DollarSign },

@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useState, useCallback } from 'react'
-import type { Task, Agent, IssueLabel, TaskComment, TaskStatus, Project } from '@/lib/types'
+import type { Task, Agent, IssueLabel, TaskComment, TaskStatus, Project, Goal } from '@/lib/types'
 import { IssueFilters, type IssueFilterState } from '@/components/issues/IssueFilters'
 import { IssuesList, type GroupBy, type SortField, type SortDir } from '@/components/issues/IssuesList'
 import { IssueBoard } from '@/components/issues/IssueBoard'
@@ -16,6 +16,7 @@ export default function IssuesPage() {
   const [agents, setAgents] = useState<Agent[]>([])
   const [labels, setLabels] = useState<IssueLabel[]>([])
   const [projects, setProjects] = useState<Project[]>([])
+  const [goals, setGoals] = useState<Goal[]>([])
   const [taskLabels, setTaskLabels] = useState<Record<string, string[]>>({})
   const [loading, setLoading] = useState(true)
   const [viewMode, setViewMode] = useState<ViewMode>('list')
@@ -31,6 +32,7 @@ export default function IssuesPage() {
     priority: null,
     agentId: null,
     labelId: null,
+    projectId: null,
     search: '',
   })
 
@@ -47,25 +49,29 @@ export default function IssuesPage() {
       if (filters.status) params.set('status', filters.status)
       if (filters.priority) params.set('priority', filters.priority)
       if (filters.agentId) params.set('agent_id', filters.agentId)
+      if (filters.projectId) params.set('project_id', filters.projectId)
       if (filters.search) params.set('search', filters.search)
       params.set('exclude_hidden', 'true')
 
-      const [tasksRes, agentsRes, labelsRes, projectsRes] = await Promise.all([
+      const [tasksRes, agentsRes, labelsRes, projectsRes, goalsRes] = await Promise.all([
         fetch(`/api/tasks?${params}`),
         fetch('/api/agents'),
         fetch('/api/labels'),
         fetch('/api/projects'),
+        fetch('/api/goals'),
       ])
 
       const tasksData = await tasksRes.json()
       const agentsData = await agentsRes.json()
       const labelsData = await labelsRes.json()
       const projectsData = await projectsRes.json()
+      const goalsData = await goalsRes.json()
 
       setTasks(Array.isArray(tasksData) ? tasksData : [])
       setAgents(Array.isArray(agentsData) ? agentsData : [])
       setLabels(Array.isArray(labelsData) ? labelsData : [])
       setProjects(Array.isArray(projectsData) ? projectsData : [])
+      setGoals(Array.isArray(goalsData) ? goalsData : [])
 
       // Load task labels for all tasks
       if (Array.isArray(tasksData) && tasksData.length > 0) {
@@ -82,7 +88,7 @@ export default function IssuesPage() {
     } finally {
       setLoading(false)
     }
-  }, [filters.status, filters.priority, filters.agentId, filters.search])
+  }, [filters.status, filters.priority, filters.agentId, filters.projectId, filters.search])
 
   useEffect(() => { loadData() }, [loadData])
 
@@ -126,7 +132,7 @@ export default function IssuesPage() {
   }
 
   // Active filter count
-  const activeFilterCount = [filters.status, filters.priority, filters.agentId, filters.labelId, filters.search].filter(Boolean).length
+  const activeFilterCount = [filters.status, filters.priority, filters.agentId, filters.labelId, filters.projectId, filters.search].filter(Boolean).length
 
   async function handleCreate(data: {
     title: string
@@ -249,7 +255,7 @@ export default function IssuesPage() {
           {/* Filter count badge */}
           {activeFilterCount > 0 && (
             <button
-              onClick={() => setFilters({ status: null, priority: null, agentId: null, labelId: null, search: '' })}
+              onClick={() => setFilters({ status: null, priority: null, agentId: null, labelId: null, projectId: null, search: '' })}
               style={{
                 display: 'inline-flex',
                 alignItems: 'center',
@@ -394,6 +400,7 @@ export default function IssuesPage() {
                     { value: 'status' as GroupBy, label: 'Status' },
                     { value: 'priority' as GroupBy, label: 'Priority' },
                     { value: 'assignee' as GroupBy, label: 'Assignee' },
+                    { value: 'project' as GroupBy, label: 'Project' },
                     { value: 'none' as GroupBy, label: 'None' },
                   ]).map(g => (
                     <button
@@ -451,6 +458,7 @@ export default function IssuesPage() {
           onChange={setFilters}
           agents={agents}
           labels={labels}
+          projects={projects}
         />
       </div>
 
@@ -481,6 +489,7 @@ export default function IssuesPage() {
               agents={agents}
               labels={labels}
               taskLabels={taskLabels}
+              projects={projects}
               onSelect={(t) => setSelectedTask(t)}
               selectedId={selectedTask?.id}
               groupBy={groupBy}
@@ -507,6 +516,7 @@ export default function IssuesPage() {
             task={selectedTask}
             agents={agents}
             projects={projects}
+            goals={goals}
             allLabels={labels}
             taskLabels={selectedTaskLabels}
             comments={comments}
@@ -524,7 +534,7 @@ export default function IssuesPage() {
         <NewIssueDialog
           agents={agents}
           labels={labels}
-          projects={projects.map(p => ({ id: p.id, name: p.name }))}
+          projects={projects}
           onSubmit={handleCreate}
           onClose={() => setShowCreate(false)}
         />

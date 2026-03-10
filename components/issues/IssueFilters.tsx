@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useRef } from 'react'
 import { Search, X } from 'lucide-react'
-import type { Agent, TaskStatus, TaskPriority, IssueLabel } from '@/lib/types'
+import type { Agent, TaskStatus, TaskPriority, IssueLabel, Project } from '@/lib/types'
 import { StatusIcon, STATUS_CONFIG } from './StatusIcon'
 import { PriorityIcon, PRIORITY_CONFIG } from './PriorityIcon'
 
@@ -11,6 +11,7 @@ export interface IssueFilterState {
   priority: TaskPriority | null
   agentId: string | null
   labelId: string | null
+  projectId: string | null
   search: string
 }
 
@@ -19,6 +20,7 @@ interface IssueFiltersProps {
   onChange: (filters: IssueFilterState) => void
   agents: Agent[]
   labels: IssueLabel[]
+  projects?: Project[]
 }
 
 function FilterDropdown({
@@ -130,7 +132,7 @@ function DropdownItem({
   )
 }
 
-export function IssueFilters({ filters, onChange, agents, labels }: IssueFiltersProps) {
+export function IssueFilters({ filters, onChange, agents, labels, projects }: IssueFiltersProps) {
   const [searchValue, setSearchValue] = useState(filters.search)
   const debounceRef = useRef<ReturnType<typeof setTimeout>>(undefined)
 
@@ -269,6 +271,25 @@ export function IssueFilters({ filters, onChange, agents, labels }: IssueFilters
                 }}
               />
               {l.name}
+            </DropdownItem>
+          ))}
+        </FilterDropdown>
+      )}
+
+      {/* Project filter */}
+      {projects && projects.length > 0 && (
+        <FilterDropdown
+          label={filters.projectId ? projects.find(p => p.id === filters.projectId)?.name ?? 'Project' : 'Project'}
+          value={filters.projectId}
+          onClear={() => onChange({ ...filters, projectId: null })}
+        >
+          {projects.map(p => (
+            <DropdownItem
+              key={p.id}
+              selected={filters.projectId === p.id}
+              onClick={() => onChange({ ...filters, projectId: filters.projectId === p.id ? null : p.id })}
+            >
+              {p.name}
             </DropdownItem>
           ))}
         </FilterDropdown>

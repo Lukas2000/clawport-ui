@@ -1,7 +1,7 @@
 'use client'
 
 import { useState } from 'react'
-import type { Task, Agent, IssueLabel, TaskStatus } from '@/lib/types'
+import type { Task, Agent, IssueLabel, TaskStatus, Project } from '@/lib/types'
 import { AgentAvatar } from '@/components/AgentAvatar'
 import { StatusIcon, STATUS_CONFIG } from './StatusIcon'
 import { PriorityIcon } from './PriorityIcon'
@@ -25,13 +25,14 @@ function formatDate(ts: string): string {
 
 export type SortField = 'created' | 'updated' | 'priority' | 'title'
 export type SortDir = 'asc' | 'desc'
-export type GroupBy = 'status' | 'priority' | 'assignee' | 'none'
+export type GroupBy = 'status' | 'priority' | 'assignee' | 'project' | 'none'
 
 interface IssuesListProps {
   tasks: Task[]
   agents: Agent[]
   labels: IssueLabel[]
   taskLabels: Record<string, string[]>
+  projects?: Project[]
   onSelect: (task: Task) => void
   selectedId?: string | null
   groupBy?: GroupBy
@@ -72,7 +73,7 @@ interface TaskGroup {
   color?: string
 }
 
-function groupTasks(tasks: Task[], groupBy: GroupBy, agents: Agent[]): TaskGroup[] {
+function groupTasks(tasks: Task[], groupBy: GroupBy, agents: Agent[], projects?: Project[]): TaskGroup[] {
   if (groupBy === 'none') {
     return [{ key: 'all', label: '', tasks }]
   }
@@ -128,12 +129,40 @@ function groupTasks(tasks: Task[], groupBy: GroupBy, agents: Agent[]): TaskGroup
       const agent = agentMap.get(agentId)
       groups.push({
         key: agentId,
-        label: agent ? agent.name : agentId,
+        label: agent ? `${agent.emoji} ${agent.name}` : agentId,
         tasks: agentTasks,
       })
     }
     if (unassigned.length > 0) {
       groups.push({ key: 'unassigned', label: 'Unassigned', tasks: unassigned })
+    }
+    return groups
+  }
+
+  if (groupBy === 'project') {
+    const projectMap = new Map((projects ?? []).map(p => [p.id, p]))
+    const grouped = new Map<string, Task[]>()
+    const noProject: Task[] = []
+    for (const t of tasks) {
+      if (t.projectId) {
+        const list = grouped.get(t.projectId) ?? []
+        list.push(t)
+        grouped.set(t.projectId, list)
+      } else {
+        noProject.push(t)
+      }
+    }
+    const groups: TaskGroup[] = []
+    for (const [projectId, projectTasks] of grouped) {
+      const project = projectMap.get(projectId)
+      groups.push({
+        key: projectId,
+        label: project?.name ?? projectId,
+        tasks: projectTasks,
+      })
+    }
+    if (noProject.length > 0) {
+      groups.push({ key: 'no-project', label: 'No project', tasks: noProject })
     }
     return groups
   }
@@ -146,6 +175,7 @@ export function IssuesList({
   agents,
   labels,
   taskLabels,
+  projects,
   onSelect,
   selectedId,
   groupBy = 'status',
@@ -180,7 +210,7 @@ export function IssuesList({
   }
 
   const sorted = sortTasks(tasks, sortField, sortDir)
-  const groups = groupTasks(sorted, groupBy, agents)
+  const groups = groupTasks(sorted, groupBy, agents, projects)
 
   function toggleGroup(key: string) {
     setCollapsed(prev => {
