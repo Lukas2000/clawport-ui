@@ -49,9 +49,9 @@ function AgentCard({
         padding: "var(--space-3) var(--space-4)",
         borderRadius: "var(--radius-md)",
         background: "var(--material-regular)",
-        border: selected
-          ? `1.5px solid ${agent.color}`
-          : "1px solid var(--separator)",
+        borderLeft: selected ? `1.5px solid ${agent.color}` : "1px solid var(--separator)",
+        borderRight: selected ? `1.5px solid ${agent.color}` : "1px solid var(--separator)",
+        borderBottom: selected ? `1.5px solid ${agent.color}` : "1px solid var(--separator)",
         borderTop: `2px solid ${agent.color}`,
         cursor: "pointer",
         width: "100%",

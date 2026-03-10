@@ -9,6 +9,9 @@ export async function GET(request: Request) {
       agentId: url.searchParams.get('agent_id') ?? undefined,
       projectId: url.searchParams.get('project_id') ?? undefined,
       status: url.searchParams.get('status') ?? undefined,
+      priority: url.searchParams.get('priority') ?? undefined,
+      search: url.searchParams.get('search') ?? undefined,
+      excludeHidden: url.searchParams.get('exclude_hidden') !== 'false',
     }
     return NextResponse.json(getTasks(filters))
   } catch (err) {

@@ -257,9 +257,9 @@ export interface Project {
 
 // ── Task Types (SQLite-backed kanban) ─────────────────────────
 
-export type TaskStatus = 'backlog' | 'todo' | 'in-progress' | 'review' | 'done'
+export type TaskStatus = 'backlog' | 'todo' | 'in-progress' | 'review' | 'done' | 'cancelled'
 
-export type TaskPriority = 'low' | 'medium' | 'high'
+export type TaskPriority = 'low' | 'medium' | 'high' | 'urgent' | 'none'
 
 export interface Task {
   id: string
@@ -277,9 +277,26 @@ export interface Task {
   workStartedAt: number | null
   workError: string | null
   workResult: string | null
+  identifier: string | null
+  issueNumber: number | null
+  parentId: string | null
+  checkoutAgentId: string | null
+  checkoutAt: string | null
+  startedAt: string | null
+  cancelledAt: string | null
+  hiddenAt: string | null
   createdAt: string
   updatedAt: string
   completedAt: string | null
+}
+
+// ── Issue Label Types ─────────────────────────────────────────
+
+export interface IssueLabel {
+  id: string
+  name: string
+  color: string
+  createdAt: string
 }
 
 export interface TaskComment {

@@ -50,9 +50,9 @@ function migrate(db: Database.Database) {
       title TEXT NOT NULL,
       description TEXT NOT NULL DEFAULT '',
       status TEXT NOT NULL DEFAULT 'backlog'
-        CHECK(status IN ('backlog','todo','in-progress','review','done')),
+        CHECK(status IN ('backlog','todo','in-progress','review','done','cancelled')),
       priority TEXT NOT NULL DEFAULT 'medium'
-        CHECK(priority IN ('low','medium','high')),
+        CHECK(priority IN ('low','medium','high','urgent','none')),
       project_id TEXT REFERENCES projects(id) ON DELETE SET NULL,
       assigned_agent_id TEXT,
       assignee_role TEXT,
@@ -64,6 +64,14 @@ function migrate(db: Database.Database) {
       work_started_at INTEGER,
       work_error TEXT,
       work_result TEXT,
+      identifier TEXT,
+      issue_number INTEGER,
+      parent_id TEXT REFERENCES tasks(id) ON DELETE SET NULL,
+      checkout_agent_id TEXT,
+      checkout_at TEXT,
+      started_at TEXT,
+      cancelled_at TEXT,
+      hidden_at TEXT,
       created_at TEXT NOT NULL DEFAULT (datetime('now')),
       updated_at TEXT NOT NULL DEFAULT (datetime('now')),
       completed_at TEXT
@@ -90,7 +98,42 @@ function migrate(db: Database.Database) {
       created_at TEXT NOT NULL DEFAULT (datetime('now')),
       decided_at TEXT
     );
+
+    -- Issue labels for categorization
+    CREATE TABLE IF NOT EXISTS issue_labels (
+      id TEXT PRIMARY KEY,
+      name TEXT NOT NULL UNIQUE,
+      color TEXT NOT NULL DEFAULT '#6B7280',
+      created_at TEXT NOT NULL DEFAULT (datetime('now'))
+    );
+
+    -- Many-to-many: tasks <-> labels
+    CREATE TABLE IF NOT EXISTS task_labels (
+      task_id TEXT NOT NULL REFERENCES tasks(id) ON DELETE CASCADE,
+      label_id TEXT NOT NULL REFERENCES issue_labels(id) ON DELETE CASCADE,
+      PRIMARY KEY (task_id, label_id)
+    );
+
+    -- Track read/unread state per issue
+    CREATE TABLE IF NOT EXISTS issue_read_states (
+      task_id TEXT NOT NULL REFERENCES tasks(id) ON DELETE CASCADE,
+      read_at TEXT NOT NULL DEFAULT (datetime('now')),
+      PRIMARY KEY (task_id)
+    );
   `)
+
+  // Additive migrations for existing databases (idempotent)
+  const addColumn = (table: string, column: string, type: string) => {
+    try { db.exec(`ALTER TABLE ${table} ADD COLUMN ${column} ${type}`) } catch { /* already exists */ }
+  }
+  addColumn('tasks', 'identifier', 'TEXT')
+  addColumn('tasks', 'issue_number', 'INTEGER')
+  addColumn('tasks', 'parent_id', 'TEXT REFERENCES tasks(id) ON DELETE SET NULL')
+  addColumn('tasks', 'checkout_agent_id', 'TEXT')
+  addColumn('tasks', 'checkout_at', 'TEXT')
+  addColumn('tasks', 'started_at', 'TEXT')
+  addColumn('tasks', 'cancelled_at', 'TEXT')
+  addColumn('tasks', 'hidden_at', 'TEXT')
 }
 
 /**

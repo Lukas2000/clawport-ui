@@ -1,0 +1,469 @@
+'use client'
+
+import { useState, useEffect, useCallback } from 'react'
+import type { Task, Agent, IssueLabel, TaskComment, TaskStatus, TaskPriority } from '@/lib/types'
+import { AgentAvatar } from '@/components/AgentAvatar'
+import { StatusIcon, STATUS_CONFIG } from './StatusIcon'
+import { PriorityIcon, PRIORITY_CONFIG } from './PriorityIcon'
+import { X, ChevronRight, MessageSquare, GitBranch, Activity } from 'lucide-react'
+
+interface IssueDetailProps {
+  task: Task
+  agents: Agent[]
+  allLabels: IssueLabel[]
+  taskLabels: IssueLabel[]
+  comments: TaskComment[]
+  subIssues: Task[]
+  ancestry: Task[]
+  onClose: () => void
+  onUpdate: (data: Record<string, unknown>) => void
+  onAddComment: (content: string) => void
+}
+
+type Tab = 'comments' | 'sub-issues' | 'activity'
+
+function relativeTime(ts: string): string {
+  const diff = Date.now() - new Date(ts).getTime()
+  const mins = Math.floor(diff / 60000)
+  if (mins < 1) return 'just now'
+  if (mins < 60) return `${mins}m ago`
+  const hrs = Math.floor(mins / 60)
+  if (hrs < 24) return `${hrs}h ago`
+  const days = Math.floor(hrs / 24)
+  return `${days}d ago`
+}
+
+function PropertyRow({ label, children }: { label: string; children: React.ReactNode }) {
+  return (
+    <div style={{ display: 'flex', alignItems: 'center', gap: '8px', minHeight: '32px' }}>
+      <span
+        style={{
+          fontSize: '11px',
+          fontWeight: 500,
+          color: 'var(--text-tertiary)',
+          width: '72px',
+          flexShrink: 0,
+        }}
+      >
+        {label}
+      </span>
+      <div style={{ flex: 1, minWidth: 0 }}>{children}</div>
+    </div>
+  )
+}
+
+function InlineSelect({
+  value,
+  options,
+  onChange,
+  renderOption,
+}: {
+  value: string
+  options: string[]
+  onChange: (v: string) => void
+  renderOption: (v: string) => React.ReactNode
+}) {
+  return (
+    <select
+      value={value}
+      onChange={(e) => onChange(e.target.value)}
+      style={{
+        background: 'transparent',
+        border: '1px solid transparent',
+        borderRadius: '4px',
+        padding: '2px 4px',
+        fontSize: '12px',
+        color: 'var(--text-primary)',
+        cursor: 'pointer',
+        outline: 'none',
+        appearance: 'none',
+        WebkitAppearance: 'none',
+      }}
+      onFocus={(e) => (e.target.style.borderColor = 'var(--separator)')}
+      onBlur={(e) => (e.target.style.borderColor = 'transparent')}
+    >
+      {options.map(o => (
+        <option key={o} value={o}>{typeof renderOption === 'function' ? o : o}</option>
+      ))}
+    </select>
+  )
+}
+
+export function IssueDetail({
+  task,
+  agents,
+  allLabels,
+  taskLabels,
+  comments,
+  subIssues,
+  ancestry,
+  onClose,
+  onUpdate,
+  onAddComment,
+}: IssueDetailProps) {
+  const [tab, setTab] = useState<Tab>('comments')
+  const [commentDraft, setCommentDraft] = useState('')
+  const agent = task.assignedAgentId ? agents.find(a => a.id === task.assignedAgentId) ?? null : null
+
+  const statuses: TaskStatus[] = ['backlog', 'todo', 'in-progress', 'review', 'done', 'cancelled']
+  const priorities: TaskPriority[] = ['urgent', 'high', 'medium', 'low', 'none']
+
+  function handleSubmitComment() {
+    if (!commentDraft.trim()) return
+    onAddComment(commentDraft.trim())
+    setCommentDraft('')
+  }
+
+  return (
+    <div
+      style={{
+        width: '380px',
+        height: '100%',
+        borderLeft: '1px solid var(--separator)',
+        background: 'var(--bg)',
+        display: 'flex',
+        flexDirection: 'column',
+        flexShrink: 0,
+        overflow: 'hidden',
+      }}
+    >
+      {/* Header */}
+      <div
+        style={{
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          padding: '12px 16px',
+          borderBottom: '1px solid var(--separator)',
+          flexShrink: 0,
+        }}
+      >
+        {/* Breadcrumb */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: '4px', overflow: 'hidden' }}>
+          {ancestry.slice().reverse().map(a => (
+            <span
+              key={a.id}
+              style={{
+                fontSize: '11px',
+                fontFamily: 'var(--font-mono)',
+                color: 'var(--text-quaternary)',
+                whiteSpace: 'nowrap',
+              }}
+            >
+              {a.identifier ?? a.id.slice(0, 6)}
+              <ChevronRight size={10} style={{ margin: '0 2px', verticalAlign: 'middle' }} />
+            </span>
+          ))}
+          <span
+            style={{
+              fontSize: '12px',
+              fontFamily: 'var(--font-mono)',
+              fontWeight: 600,
+              color: 'var(--text-secondary)',
+            }}
+          >
+            {task.identifier ?? task.id.slice(0, 8)}
+          </span>
+        </div>
+        <button
+          onClick={onClose}
+          style={{
+            background: 'none',
+            border: 'none',
+            color: 'var(--text-tertiary)',
+            cursor: 'pointer',
+            padding: '4px',
+            borderRadius: '4px',
+            display: 'flex',
+          }}
+        >
+          <X size={16} />
+        </button>
+      </div>
+
+      {/* Scrollable content */}
+      <div style={{ flex: 1, overflowY: 'auto', padding: '16px' }}>
+        {/* Title */}
+        <h2
+          style={{
+            fontSize: '16px',
+            fontWeight: 700,
+            color: 'var(--text-primary)',
+            margin: '0 0 6px',
+            lineHeight: 1.3,
+          }}
+        >
+          {task.title}
+        </h2>
+
+        {/* Description */}
+        {task.description && (
+          <p
+            style={{
+              fontSize: '13px',
+              color: 'var(--text-secondary)',
+              lineHeight: 1.5,
+              margin: '0 0 16px',
+              whiteSpace: 'pre-wrap',
+            }}
+          >
+            {task.description}
+          </p>
+        )}
+
+        {/* Properties */}
+        <div
+          style={{
+            display: 'flex',
+            flexDirection: 'column',
+            gap: '4px',
+            padding: '12px 0',
+            borderTop: '1px solid var(--separator)',
+            borderBottom: '1px solid var(--separator)',
+            marginBottom: '16px',
+          }}
+        >
+          <PropertyRow label="Status">
+            <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+              <StatusIcon status={task.status} size={12} />
+              <InlineSelect
+                value={task.status}
+                options={statuses}
+                onChange={(v) => onUpdate({ status: v })}
+                renderOption={(v) => STATUS_CONFIG[v as TaskStatus]?.label ?? v}
+              />
+            </div>
+          </PropertyRow>
+
+          <PropertyRow label="Priority">
+            <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+              <PriorityIcon priority={task.priority} size={12} />
+              <InlineSelect
+                value={task.priority}
+                options={priorities}
+                onChange={(v) => onUpdate({ priority: v })}
+                renderOption={(v) => PRIORITY_CONFIG[v as TaskPriority]?.label ?? v}
+              />
+            </div>
+          </PropertyRow>
+
+          <PropertyRow label="Assignee">
+            {agent ? (
+              <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                <AgentAvatar agent={agent} size={18} borderRadius={5} />
+                <span style={{ fontSize: '12px', color: 'var(--text-primary)' }}>{agent.name}</span>
+              </div>
+            ) : (
+              <select
+                value=""
+                onChange={(e) => onUpdate({ assignedAgentId: e.target.value || null })}
+                style={{
+                  background: 'transparent',
+                  border: 'none',
+                  fontSize: '12px',
+                  color: 'var(--text-quaternary)',
+                  cursor: 'pointer',
+                  outline: 'none',
+                }}
+              >
+                <option value="">Unassigned</option>
+                {agents.map(a => (
+                  <option key={a.id} value={a.id}>{a.name}</option>
+                ))}
+              </select>
+            )}
+          </PropertyRow>
+
+          <PropertyRow label="Labels">
+            <div style={{ display: 'flex', gap: '3px', flexWrap: 'wrap' }}>
+              {taskLabels.map(l => (
+                <span
+                  key={l.id}
+                  style={{
+                    fontSize: '10px',
+                    fontWeight: 500,
+                    padding: '1px 6px',
+                    borderRadius: '4px',
+                    background: `color-mix(in srgb, ${l.color} 15%, transparent)`,
+                    color: l.color,
+                    lineHeight: '16px',
+                  }}
+                >
+                  {l.name}
+                </span>
+              ))}
+              {taskLabels.length === 0 && (
+                <span style={{ fontSize: '12px', color: 'var(--text-quaternary)' }}>None</span>
+              )}
+            </div>
+          </PropertyRow>
+
+          {task.dueDate && (
+            <PropertyRow label="Due date">
+              <span style={{ fontSize: '12px', color: 'var(--text-primary)' }}>
+                {new Date(task.dueDate).toLocaleDateString()}
+              </span>
+            </PropertyRow>
+          )}
+
+          <PropertyRow label="Created">
+            <span style={{ fontSize: '12px', color: 'var(--text-tertiary)' }}>
+              {relativeTime(task.createdAt)}
+            </span>
+          </PropertyRow>
+        </div>
+
+        {/* Tabs */}
+        <div
+          style={{
+            display: 'flex',
+            gap: '0',
+            borderBottom: '1px solid var(--separator)',
+            marginBottom: '12px',
+          }}
+        >
+          {([
+            { key: 'comments' as Tab, icon: MessageSquare, label: 'Comments', count: comments.length },
+            { key: 'sub-issues' as Tab, icon: GitBranch, label: 'Sub-issues', count: subIssues.length },
+          ]).map(t => (
+            <button
+              key={t.key}
+              onClick={() => setTab(t.key)}
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: '5px',
+                padding: '8px 12px',
+                border: 'none',
+                background: 'none',
+                cursor: 'pointer',
+                fontSize: '12px',
+                fontWeight: tab === t.key ? 600 : 400,
+                color: tab === t.key ? 'var(--accent)' : 'var(--text-tertiary)',
+                borderBottom: tab === t.key ? '2px solid var(--accent)' : '2px solid transparent',
+                marginBottom: '-1px',
+              }}
+            >
+              <t.icon size={12} />
+              {t.label}
+              {t.count > 0 && (
+                <span
+                  style={{
+                    fontSize: '10px',
+                    fontFamily: 'var(--font-mono)',
+                    background: 'var(--fill-quaternary)',
+                    borderRadius: '3px',
+                    padding: '0 4px',
+                    color: 'var(--text-quaternary)',
+                  }}
+                >
+                  {t.count}
+                </span>
+              )}
+            </button>
+          ))}
+        </div>
+
+        {/* Tab content */}
+        {tab === 'comments' && (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+            {comments.length === 0 && (
+              <span style={{ fontSize: '12px', color: 'var(--text-quaternary)', padding: '8px 0' }}>
+                No comments yet.
+              </span>
+            )}
+            {comments.map(c => (
+              <div key={c.id} style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                  <span
+                    style={{
+                      fontSize: '11px',
+                      fontWeight: 600,
+                      color: c.authorType === 'agent' ? 'var(--accent)' : 'var(--text-secondary)',
+                    }}
+                  >
+                    {c.authorType === 'agent' ? (c.authorId ?? 'Agent') : 'Operator'}
+                  </span>
+                  <span style={{ fontSize: '10px', color: 'var(--text-quaternary)' }}>
+                    {relativeTime(c.createdAt)}
+                  </span>
+                </div>
+                <p style={{ fontSize: '12px', color: 'var(--text-primary)', margin: 0, lineHeight: 1.5, whiteSpace: 'pre-wrap' }}>
+                  {c.content}
+                </p>
+              </div>
+            ))}
+
+            {/* Comment input */}
+            <div style={{ display: 'flex', gap: '8px', marginTop: '4px' }}>
+              <input
+                type="text"
+                placeholder="Add a comment..."
+                value={commentDraft}
+                onChange={(e) => setCommentDraft(e.target.value)}
+                onKeyDown={(e) => { if (e.key === 'Enter') handleSubmitComment() }}
+                style={{
+                  flex: 1,
+                  padding: '6px 10px',
+                  borderRadius: '6px',
+                  border: '1px solid var(--separator)',
+                  background: 'transparent',
+                  fontSize: '12px',
+                  color: 'var(--text-primary)',
+                  outline: 'none',
+                }}
+              />
+              <button
+                onClick={handleSubmitComment}
+                disabled={!commentDraft.trim()}
+                style={{
+                  padding: '6px 12px',
+                  borderRadius: '6px',
+                  border: 'none',
+                  background: commentDraft.trim() ? 'var(--accent)' : 'var(--fill-tertiary)',
+                  color: commentDraft.trim() ? 'white' : 'var(--text-quaternary)',
+                  fontSize: '12px',
+                  fontWeight: 600,
+                  cursor: commentDraft.trim() ? 'pointer' : 'default',
+                }}
+              >
+                Send
+              </button>
+            </div>
+          </div>
+        )}
+
+        {tab === 'sub-issues' && (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+            {subIssues.length === 0 && (
+              <span style={{ fontSize: '12px', color: 'var(--text-quaternary)', padding: '8px 0' }}>
+                No sub-issues.
+              </span>
+            )}
+            {subIssues.map(sub => (
+              <div
+                key={sub.id}
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '8px',
+                  padding: '6px 8px',
+                  borderRadius: '6px',
+                  border: '1px solid var(--separator)',
+                }}
+              >
+                <StatusIcon status={sub.status} size={12} />
+                <span style={{ fontSize: '11px', fontFamily: 'var(--font-mono)', color: 'var(--text-tertiary)' }}>
+                  {sub.identifier}
+                </span>
+                <span style={{ fontSize: '12px', color: 'var(--text-primary)', flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                  {sub.title}
+                </span>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+    </div>
+  )
+}
