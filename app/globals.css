@@ -816,7 +816,11 @@ body::before {
   background-clip: text;
 }
 
-[data-theme="light"] .page-title,
+[data-theme="light"] .page-title {
+  background: none;
+  -webkit-text-fill-color: var(--text-primary);
+}
+
 @media (prefers-color-scheme: light) {
   [data-theme="system"] .page-title {
     background: none;
