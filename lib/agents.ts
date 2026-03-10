@@ -39,9 +39,7 @@ export async function getAgents(): Promise<Agent[]> {
 
 export async function getAgent(id: string): Promise<Agent | null> {
   const agents = await getAgents()
-  // Check by canonical ID first, then fall back to legacyId for backward compatibility
-  // with URLs/references that used the old directory-name-based IDs
-  return agents.find((a) => a.id === id || a.legacyId === id) ?? null
+  return agents.find((a) => a.id === id) ?? null
 }
 
 /**

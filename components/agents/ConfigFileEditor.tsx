@@ -12,9 +12,10 @@ interface ConfigFileEditorProps {
   filename: string
   label: string
   onSaveAsTemplate?: () => void
+  onSave?: (content: string) => void
 }
 
-export function ConfigFileEditor({ agentId, filename, label, onSaveAsTemplate }: ConfigFileEditorProps) {
+export function ConfigFileEditor({ agentId, filename, label, onSaveAsTemplate, onSave }: ConfigFileEditorProps) {
   const router = useRouter()
   const { mutate } = useSWRConfig()
   const [content, setContent] = useState('')
@@ -61,6 +62,9 @@ export function ConfigFileEditor({ agentId, filename, label, onSaveAsTemplate }:
       setSaved(true)
       setIsCustom(true)
       setLastModified(new Date().toISOString())
+
+      // Notify parent with saved content (used to sync agent title from SOUL.md heading)
+      onSave?.(content)
 
       // After saving a config file, refresh server-side data and SWR caches
       // to propagate changes (especially title/role changes from SOUL.md updates)

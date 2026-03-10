@@ -372,10 +372,8 @@ function discoverAgents(workspacePath: string): AgentEntry[] | null {
       const subName = subParsed.name || slugToName(basename(sub.fileName, '.md'))
       const subTitle = subParsed.title || 'Agent'
 
-      const legacySubId = `${dirName}-${basename(sub.fileName, '.md').toLowerCase()}`
       discovered.push({
         id: subId,
-        legacyId: legacySubId !== subId ? legacySubId : undefined,
         name: subName,
         title: subTitle,
         reportsTo: agentId,
@@ -400,10 +398,8 @@ function discoverAgents(workspacePath: string): AgentEntry[] | null {
       const subParsed = parseSoulHeading(sub.content)
       const subName = subParsed.name || slugToName(sub.dirName)
       const subTitle = subParsed.title || 'Agent'
-      const legacySubdirId = `${dirName}-${sub.dirName}`
       discovered.push({
         id: subId,
-        legacyId: legacySubdirId !== subId ? legacySubdirId : undefined,
         name: subName,
         title: subTitle,
         reportsTo: agentId,
@@ -420,7 +416,6 @@ function discoverAgents(workspacePath: string): AgentEntry[] | null {
 
     discovered.push({
       id: agentId,
-      legacyId: dirName !== agentId ? dirName : undefined,
       name,
       title,
       reportsTo: hasRoot ? rootId : null,

@@ -52,31 +52,8 @@ export function saveConversations(store: ConversationStore): void {
   } catch {}
 }
 
-/**
- * Migrate a conversation stored under an old agent ID to a new one.
- * Called lazily when an agent with a legacyId is accessed for the first time.
- * No-op if old key doesn't exist or new key already has data.
- */
-export function migrateConversationKey(oldId: string, newId: string): void {
-  if (typeof window === 'undefined' || oldId === newId) return
-  try {
-    const store = loadConversations()
-    if (store[oldId] && !store[newId]) {
-      const migrated: ConversationStore = { ...store }
-      migrated[newId] = { ...store[oldId], agentId: newId }
-      delete migrated[oldId]
-      saveConversations(migrated)
-    }
-  } catch {}
-}
-
 export function getOrCreateConversation(store: ConversationStore, agent: Agent): Conversation {
   if (store[agent.id]) return store[agent.id]
-  // Lazy-migrate conversation from old directory-based ID to new name-based ID
-  if (agent.legacyId && store[agent.legacyId]) {
-    migrateConversationKey(agent.legacyId, agent.id)
-    return { ...store[agent.legacyId], agentId: agent.id }
-  }
   return {
     agentId: agent.id,
     messages: [{

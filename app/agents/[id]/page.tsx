@@ -1,4 +1,4 @@
-import { notFound, permanentRedirect } from "next/navigation"
+import { notFound } from "next/navigation"
 import { getAgents, getAgent } from "@/lib/agents"
 import { getCrons } from "@/lib/crons"
 import { AgentDetailClient } from "./_components/AgentDetailClient"
@@ -20,12 +20,7 @@ export default async function AgentDetailPage({
     notFound()
   }
 
-  // Redirect from old directory-based ID to the canonical name-based ID
-  if (agent.legacyId === id && agent.id !== id) {
-    permanentRedirect(`/agents/${agent.id}`)
-  }
-
-  const agentCrons = allCrons.filter((cr) => cr.agentId === agent.id || cr.agentId === agent.legacyId)
+  const agentCrons = allCrons.filter((cr) => cr.agentId === agent.id)
 
   return (
     <AgentDetailClient

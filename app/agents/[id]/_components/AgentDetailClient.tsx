@@ -2,7 +2,7 @@
 import { useState, useRef, useCallback } from "react"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
-import { Upload, X } from "lucide-react"
+import { Trash2, Upload, X } from "lucide-react"
 import type { Agent, CronJob } from "@/lib/types"
 import { AgentAvatar } from "@/components/AgentAvatar"
 import { useSettings } from "@/app/settings-provider"
@@ -197,6 +197,22 @@ interface AgentDetailClientProps {
   crons: CronJob[]
 }
 
+/**
+ * Extract the role/title from a SOUL.md heading, mirroring server-side parseSoulHeading.
+ * Returns null if no usable title is found.
+ */
+function parseSoulTitle(content: string): string | null {
+  const match = content.match(/^#\s+(.+)/m)
+  if (!match) return null
+  let heading = match[1].trim().replace(/^SOUL\.md\s*[—–\-:]\s*/i, '')
+  if (/^who\s+you\s+are/i.test(heading)) return null
+  const dashParts = heading.split(/\s*[—–]\s*/)
+  const descAfterDash = dashParts.length > 1 ? dashParts.slice(1).join(' — ').trim() : null
+  const commaParts = dashParts[0].split(/,\s*/)
+  const titleFromComma = commaParts.length > 1 ? commaParts.slice(1).join(', ').trim() : null
+  return titleFromComma || descAfterDash || null
+}
+
 export function AgentDetailClient({ agent: initialAgent, allAgents, crons }: AgentDetailClientProps) {
   const router = useRouter()
   const { settings, setAgentOverride } = useSettings()
@@ -204,6 +220,8 @@ export function AgentDetailClient({ agent: initialAgent, allAgents, crons }: Age
   const [activeTab, setActiveTab] = useState<'profile' | 'config'>('profile')
   const [activeConfigFile, setActiveConfigFile] = useState('SOUL.md')
   const [showSaveTemplate, setShowSaveTemplate] = useState(false)
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
+  const [deleting, setDeleting] = useState(false)
   const [agent, setAgent] = useState(initialAgent)
 
   async function handleImageUpload(file: File) {
@@ -228,6 +246,29 @@ export function AgentDetailClient({ agent: initialAgent, allAgents, crons }: Age
       }
     } catch {
       // silently fail
+    }
+  }
+
+  // When SOUL.md is saved, parse the heading for a role change and sync agent.title
+  function handleSoulSave(content: string) {
+    const newTitle = parseSoulTitle(content)
+    if (newTitle && newTitle !== agent.title) {
+      patchAgent({ title: newTitle })
+    }
+  }
+
+  async function handleDelete() {
+    setDeleting(true)
+    try {
+      const res = await fetch(`/api/agents/${agent.id}`, { method: 'DELETE' })
+      if (res.ok) {
+        router.push('/')
+      }
+    } catch {
+      // silently fail
+    } finally {
+      setDeleting(false)
+      setShowDeleteConfirm(false)
     }
   }
 
@@ -347,6 +388,7 @@ export function AgentDetailClient({ agent: initialAgent, allAgents, crons }: Age
               filename={activeConfigFile}
               label={activeConfigFile}
               onSaveAsTemplate={() => setShowSaveTemplate(true)}
+              onSave={activeConfigFile === 'SOUL.md' ? handleSoulSave : undefined}
             />
           </div>
         </div>
@@ -731,6 +773,78 @@ export function AgentDetailClient({ agent: initialAgent, allAgents, crons }: Age
                 View all crons &rarr;
               </Link>
             </div>
+          )}
+        </Card>
+
+        {/* ── Danger zone ── */}
+        <Card>
+          <div className="section-header" style={{ marginBottom: "var(--space-3)", color: "var(--system-red)" }}>
+            Danger Zone
+          </div>
+          {showDeleteConfirm ? (
+            <div style={{ display: "flex", flexDirection: "column", gap: "var(--space-3)" }}>
+              <p style={{ fontSize: "var(--text-footnote)", color: "var(--text-secondary)", margin: 0 }}>
+                Delete <strong>{agent.name}</strong>? This removes the agent directory and cannot be undone.
+                Direct reports will be orphaned to this agent&apos;s parent.
+              </p>
+              <div style={{ display: "flex", gap: "var(--space-2)" }}>
+                <button
+                  onClick={handleDelete}
+                  disabled={deleting}
+                  className="focus-ring"
+                  style={{
+                    background: "var(--system-red)",
+                    color: "#fff",
+                    border: "none",
+                    borderRadius: "var(--radius-sm)",
+                    padding: "var(--space-2) var(--space-4)",
+                    fontSize: "var(--text-footnote)",
+                    fontWeight: "var(--weight-semibold)",
+                    cursor: deleting ? "not-allowed" : "pointer",
+                    opacity: deleting ? 0.7 : 1,
+                  }}
+                >
+                  {deleting ? "Deleting…" : "Confirm Delete"}
+                </button>
+                <button
+                  onClick={() => setShowDeleteConfirm(false)}
+                  className="focus-ring"
+                  style={{
+                    background: "var(--fill-secondary)",
+                    color: "var(--text-secondary)",
+                    border: "none",
+                    borderRadius: "var(--radius-sm)",
+                    padding: "var(--space-2) var(--space-4)",
+                    fontSize: "var(--text-footnote)",
+                    fontWeight: "var(--weight-medium)",
+                    cursor: "pointer",
+                  }}
+                >
+                  Cancel
+                </button>
+              </div>
+            </div>
+          ) : (
+            <button
+              onClick={() => setShowDeleteConfirm(true)}
+              className="focus-ring"
+              style={{
+                display: "inline-flex",
+                alignItems: "center",
+                gap: "var(--space-2)",
+                background: "transparent",
+                color: "var(--system-red)",
+                border: "1px solid var(--system-red)",
+                borderRadius: "var(--radius-sm)",
+                padding: "var(--space-2) var(--space-4)",
+                fontSize: "var(--text-footnote)",
+                fontWeight: "var(--weight-medium)",
+                cursor: "pointer",
+              }}
+            >
+              <Trash2 size={13} />
+              Delete Agent
+            </button>
           )}
         </Card>
 

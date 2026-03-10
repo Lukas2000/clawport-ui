@@ -2,7 +2,6 @@
 
 export interface Agent {
   id: string               // slug, e.g. "vera" (derived from agent name)
-  legacyId?: string        // former directory-based ID (e.g. "senior-project-manager"), kept for backward compat
   name: string             // display name, e.g. "VERA"
   title: string            // role title, e.g. "Chief Strategy Officer"
   reportsTo: string | null // parent agent id (null for root orchestrator)

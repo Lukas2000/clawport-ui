@@ -255,27 +255,3 @@ export function migrateTasks(
   return tx()
 }
 
-/**
- * Migrate agent IDs across all tables when an agent's ID changes
- * (e.g., from old directory-based "senior-project-manager" to name-based "george").
- * Accepts a map of { oldId: newId } pairs.
- * Returns total number of rows updated across all tables.
- */
-export function migrateAgentIds(idMap: Record<string, string>, db = getDb()): number {
-  const entries = Object.entries(idMap)
-  if (entries.length === 0) return 0
-
-  const tx = db.transaction(() => {
-    let total = 0
-    for (const [oldId, newId] of entries) {
-      if (!oldId || !newId || oldId === newId) continue
-      total += db.prepare('UPDATE tasks SET assigned_agent_id = ? WHERE assigned_agent_id = ?').run(newId, oldId).changes
-      total += db.prepare('UPDATE projects SET lead_agent_id = ? WHERE lead_agent_id = ?').run(newId, oldId).changes
-      total += db.prepare('UPDATE approvals SET requested_by_agent_id = ? WHERE requested_by_agent_id = ?').run(newId, oldId).changes
-      total += db.prepare('UPDATE task_comments SET author_id = ? WHERE author_id = ?').run(newId, oldId).changes
-    }
-    return total
-  })
-
-  return tx()
-}
