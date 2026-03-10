@@ -6,7 +6,7 @@ import { Trash2, Upload, X } from "lucide-react"
 import type { Agent, CronJob } from "@/lib/types"
 import { AgentAvatar } from "@/components/AgentAvatar"
 import { useSettings } from "@/app/settings-provider"
-import { ConfigFileEditor } from "@/components/agents/ConfigFileEditor"
+import { ConfigFileEditor, type SaveResult } from "@/components/agents/ConfigFileEditor"
 import { ConfigFileSidebar } from "@/components/agents/ConfigFileSidebar"
 import { InlineEditField } from "@/components/agents/InlineEditField"
 import { SaveTemplateModal } from "@/components/agents/SaveTemplateModal"
@@ -198,19 +198,54 @@ interface AgentDetailClientProps {
 }
 
 /**
- * Extract the role/title from a SOUL.md heading, mirroring server-side parseSoulHeading.
- * Returns null if no usable title is found.
+ * Extract role/title from SOUL.md content. Handles multiple heading formats:
+ *   "# Name, Title"                        → "Title"
+ *   "# Name — Title"                       → "Title"
+ *   "# Engineering Manager Agent Personality" → "Engineering Manager"
+ * Falls back to "You are a **Title**" in body text.
  */
 function parseSoulTitle(content: string): string | null {
   const match = content.match(/^#\s+(.+)/m)
   if (!match) return null
   let heading = match[1].trim().replace(/^SOUL\.md\s*[—–\-:]\s*/i, '')
   if (/^who\s+you\s+are/i.test(heading)) return null
+
+  // "Name — Title" or "Name, Title"
   const dashParts = heading.split(/\s*[—–]\s*/)
-  const descAfterDash = dashParts.length > 1 ? dashParts.slice(1).join(' — ').trim() : null
+  if (dashParts.length > 1) return dashParts.slice(1).join(' — ').trim()
   const commaParts = dashParts[0].split(/,\s*/)
-  const titleFromComma = commaParts.length > 1 ? commaParts.slice(1).join(', ').trim() : null
-  return titleFromComma || descAfterDash || null
+  if (commaParts.length > 1) return commaParts.slice(1).join(', ').trim()
+
+  // "Engineering Manager Agent Personality" → "Engineering Manager"
+  const stripped = heading.replace(/\s+agent\s+personality$/i, '').trim()
+  if (stripped && stripped !== heading) return stripped
+
+  // Body: "You are a **Finance Manager**"
+  const bodyMatch = content.match(/you are (?:a |an |the )?\*\*(.+?)\*\*/i)
+  if (bodyMatch) return bodyMatch[1].trim()
+
+  return null
+}
+
+/** Extract first paragraph description from SOUL.md body (after the heading). */
+function parseSoulDescription(content: string): string | null {
+  // Find first non-heading, non-empty paragraph
+  const lines = content.split('\n')
+  let pastHeading = false
+  for (const line of lines) {
+    const trimmed = line.trim()
+    if (!pastHeading) {
+      if (trimmed.startsWith('#')) { pastHeading = true; continue }
+      continue
+    }
+    if (!trimmed) continue
+    if (trimmed.startsWith('#') || trimmed.startsWith('-') || trimmed.startsWith('*')) break
+    // Strip bold markers for cleaner description
+    const clean = trimmed.replace(/\*\*(.+?)\*\*/g, '$1')
+    if (clean.length > 20 && clean.length < 300) return clean
+    break
+  }
+  return null
 }
 
 export function AgentDetailClient({ agent: initialAgent, allAgents, crons }: AgentDetailClientProps) {
@@ -255,12 +290,23 @@ export function AgentDetailClient({ agent: initialAgent, allAgents, crons }: Age
     }
   }
 
-  // When SOUL.md is saved, parse the heading for a role change and sync agent.title
-  async function handleSoulSave(content: string) {
+  // When SOUL.md is saved, extract metadata and update the agent record
+  async function handleSoulSave(content: string): Promise<SaveResult> {
     const newTitle = parseSoulTitle(content)
-    if (newTitle && newTitle !== agent.title) {
-      await patchAgent({ title: newTitle })
+    const newDesc = parseSoulDescription(content)
+    const updates: Record<string, unknown> = {}
+    if (newTitle && newTitle !== agent.title) updates.title = newTitle
+    if (newDesc && newDesc !== agent.description) updates.description = newDesc
+
+    // Immediately update local soul content so Profile tab reflects the change
+    setAgent((prev) => ({ ...prev, soul: content }))
+
+    if (Object.keys(updates).length > 0) {
+      await patchAgent(updates)
+      const fields = Object.keys(updates).join(', ')
+      return { ok: true, message: `SOUL.md saved, updated ${fields}` }
     }
+    return { ok: true, message: 'SOUL.md saved' }
   }
 
   async function handleDelete() {

@@ -7,12 +7,17 @@ import { renderMarkdown } from '@/lib/sanitize'
 import { TemplatePicker } from '@/components/team/TemplatePicker'
 import type { AgentTemplate } from '@/lib/types'
 
+export interface SaveResult {
+  ok: boolean
+  message: string
+}
+
 interface ConfigFileEditorProps {
   agentId: string
   filename: string
   label: string
   onSaveAsTemplate?: () => void
-  onSave?: (content: string) => void | Promise<void>
+  onSave?: (content: string) => Promise<SaveResult>
 }
 
 export function ConfigFileEditor({ agentId, filename, label, onSaveAsTemplate, onSave }: ConfigFileEditorProps) {
@@ -25,6 +30,7 @@ export function ConfigFileEditor({ agentId, filename, label, onSaveAsTemplate, o
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [saved, setSaved] = useState(false)
+  const [toast, setToast] = useState<{ type: 'success' | 'error'; message: string } | null>(null)
   const [showPreview, setShowPreview] = useState(false)
   const [reverting, setReverting] = useState(false)
   const [showTemplatePicker, setShowTemplatePicker] = useState(false)
@@ -52,29 +58,32 @@ export function ConfigFileEditor({ agentId, filename, label, onSaveAsTemplate, o
   async function save() {
     setSaving(true)
     setSaved(false)
+    setToast(null)
     try {
       const res = await fetch(`/api/agents/${agentId}/files/${encodeURIComponent(filename)}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ content }),
       })
-      if (!res.ok) throw new Error('Failed to save')
+      if (!res.ok) throw new Error('Failed to save file to disk')
       setSaved(true)
       setIsCustom(true)
       setLastModified(new Date().toISOString())
 
-      // Notify parent with saved content (used to sync agent title from SOUL.md heading)
-      // Await so the PATCH completes before we refresh server data
-      await onSave?.(content)
+      // Notify parent so it can update the agent record (title, description, etc.)
+      const result = onSave ? await onSave(content) : null
 
-      // After saving a config file, refresh server-side data and SWR caches
-      // to propagate changes (especially title/role changes from SOUL.md updates)
+      // Refresh server-side data and SWR caches
       router.refresh()
       mutate('/api/agents', undefined, { revalidate: true })
 
-      setTimeout(() => setSaved(false), 2000)
+      setToast({ type: 'success', message: result?.message || `${filename} saved` })
+      setTimeout(() => { setSaved(false); setToast(null) }, 3000)
     } catch (e) {
-      setError((e as Error).message)
+      const msg = (e as Error).message
+      setError(msg)
+      setToast({ type: 'error', message: msg })
+      setTimeout(() => setToast(null), 5000)
     } finally {
       setSaving(false)
     }
@@ -287,6 +296,27 @@ export function ConfigFileEditor({ agentId, filename, label, onSaveAsTemplate, o
               </button>
             </div>
           </div>
+        </div>
+      )}
+
+      {/* Save toast */}
+      {toast && (
+        <div
+          style={{
+            padding: '10px 16px',
+            borderRadius: 8,
+            fontSize: 13,
+            fontWeight: 500,
+            display: 'flex',
+            alignItems: 'center',
+            gap: 8,
+            background: toast.type === 'success' ? 'rgba(48,209,88,0.12)' : 'rgba(255,69,58,0.12)',
+            border: `1px solid ${toast.type === 'success' ? 'rgba(48,209,88,0.3)' : 'rgba(255,69,58,0.3)'}`,
+            color: toast.type === 'success' ? 'var(--system-green)' : 'var(--system-red)',
+          }}
+        >
+          <span>{toast.type === 'success' ? '\u2713' : '\u2717'}</span>
+          {toast.message}
         </div>
       )}
 
