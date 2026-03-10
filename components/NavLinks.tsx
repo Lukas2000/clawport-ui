@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { Map, MessageSquare, Clock, Activity, Brain, CircleDot, BookOpen, Settings, DollarSign, Users, Target, FolderKanban, Calendar, CheckCircle } from 'lucide-react';
+import { Map, MessageSquare, Clock, Activity, Brain, CircleDot, BookOpen, Settings, DollarSign, Users, Target, FolderKanban, Calendar, CheckCircle, Compass } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
 import { useSettings } from '@/app/settings-provider';
 import { useAgents } from '@/lib/hooks/use-agents';
@@ -38,7 +38,8 @@ const NAV_SECTIONS: NavSection[] = [
     items: [
       { href: '/', label: 'Map', icon: Map, badge: 'agents' },
       { href: '/team', label: 'Team', icon: Users },
-      { href: '/mission', label: 'Mission', icon: Target },
+      { href: '/mission', label: 'Mission', icon: Compass },
+      { href: '/goals', label: 'Goals', icon: Target },
     ],
   },
   {

@@ -2,6 +2,8 @@ import { Agent } from '@/lib/types'
 import { readFileSync, existsSync } from 'fs'
 import { loadRegistry } from '@/lib/agents-registry'
 import { loadMission } from '@/lib/mission'
+import { getGoals } from '@/lib/goals'
+import { getTasks } from '@/lib/tasks'
 
 export async function getAgents(): Promise<Agent[]> {
   const workspacePath = process.env.WORKSPACE_PATH || ''
@@ -267,4 +269,43 @@ function buildMemberContext(agent: Agent, allAgents: Agent[]): string {
   )
 
   return lines.join('\n')
+}
+
+/**
+ * Builds a goal context block for an agent's system prompt.
+ * Shows goals owned by or relevant to the agent, plus their assigned issues.
+ */
+export function buildGoalContext(agentId: string): string {
+  try {
+    const ownedGoals = getGoals({ ownerAgentId: agentId })
+    const assignedTasks = getTasks({ agentId, excludeHidden: true })
+    const activeTasks = assignedTasks.filter(t => !['done', 'cancelled'].includes(t.status))
+
+    if (ownedGoals.length === 0 && activeTasks.length === 0) return ''
+
+    const lines: string[] = []
+    lines.push('## Active Goals & Assigned Work')
+
+    if (ownedGoals.length > 0) {
+      lines.push('\n**Goals you own:**')
+      for (const g of ownedGoals) {
+        const statusTag = g.status !== 'active' ? ` [${g.status}]` : ''
+        lines.push(`- ${g.title} (${g.progress}% complete)${statusTag}`)
+        if (g.description) lines.push(`  ${g.description}`)
+      }
+    }
+
+    if (activeTasks.length > 0) {
+      lines.push('\n**Your assigned issues:**')
+      for (const t of activeTasks) {
+        const id = t.identifier ?? t.id.slice(0, 8)
+        lines.push(`- ${id}: ${t.title} [${t.status}] (${t.priority} priority)`)
+      }
+    }
+
+    return lines.join('\n')
+  } catch {
+    // DB not available (e.g. during build)
+    return ''
+  }
 }

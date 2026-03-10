@@ -250,6 +250,29 @@ export interface Project {
   status: ProjectStatus
   priority: 'low' | 'medium' | 'high'
   leadAgentId: string | null
+  goalId: string | null
+  progress: number
+  createdAt: string
+  updatedAt: string
+}
+
+// ── Goal Types ───────────────────────────────────────────────
+
+export type GoalType = 'goal' | 'okr' | 'key-result'
+
+export type GoalStatus = 'active' | 'completed' | 'paused' | 'cancelled'
+
+export interface Goal {
+  id: string
+  title: string
+  description: string
+  type: GoalType
+  parentGoalId: string | null
+  ownerAgentId: string | null
+  status: GoalStatus
+  targetValue: number | null
+  currentValue: number
+  targetDate: string | null
   progress: number
   createdAt: string
   updatedAt: string

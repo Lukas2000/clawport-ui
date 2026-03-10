@@ -5,10 +5,11 @@ import Link from "next/link"
 import dynamic from "next/dynamic"
 import type { Agent, CronJob } from "@/lib/types"
 import { Skeleton } from "@/components/ui/skeleton"
-import { Map as MapIcon, LayoutGrid, List, X, MessageSquare, User } from "lucide-react"
+import { Map as MapIcon, LayoutGrid, List, X, MessageSquare, User, BarChart3 } from "lucide-react"
 import { AgentAvatar } from "@/components/AgentAvatar"
 import { GridView } from "@/components/GridView"
 import { FeedView } from "@/components/FeedView"
+import { DashboardView } from "@/components/dashboard/DashboardView"
 
 const OrgMap = dynamic(
   () => import("@/components/OrgMap").then((m) => ({ default: m.OrgMap })),
@@ -60,15 +61,17 @@ function StatusDot({ status }: { status: CronJob["status"] }) {
   )
 }
 
-type View = "map" | "grid" | "feed"
+type View = "dashboard" | "map" | "grid" | "feed"
 
 const VIEW_ICONS: Record<View, React.ComponentType<{ size: number }>> = {
+  dashboard: BarChart3,
   map: MapIcon,
   grid: LayoutGrid,
   feed: List,
 }
 
 const VIEW_OPTIONS: { key: View; label: string }[] = [
+  { key: "dashboard", label: "Dashboard" },
   { key: "map", label: "Map" },
   { key: "grid", label: "Grid" },
   { key: "feed", label: "Feed" },
@@ -79,7 +82,7 @@ export function HomeClient() {
   const [agents, setAgents] = useState<Agent[]>([])
   const [crons, setCrons] = useState<CronJob[]>([])
   const [selected, setSelected] = useState<Agent | null>(null)
-  const [view, setView] = useState<View>("map")
+  const [view, setView] = useState<View>("dashboard")
   const closeRef = useRef<HTMLButtonElement>(null)
 
   useEffect(() => {
@@ -121,7 +124,11 @@ export function HomeClient() {
     <div className="flex h-full relative" style={{ background: "var(--bg)" }}>
       {/* ── Main content area ── */}
       <div className="flex-1 h-full relative">
-        {view === "map" ? (
+        {view === "dashboard" ? (
+          <div style={{ height: "100%", overflowY: "auto" }}>
+            <DashboardView />
+          </div>
+        ) : view === "map" ? (
           <OrgMap
             agents={agents}
             crons={crons}

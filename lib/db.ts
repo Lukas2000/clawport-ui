@@ -120,6 +120,26 @@ function migrate(db: Database.Database) {
       read_at TEXT NOT NULL DEFAULT (datetime('now')),
       PRIMARY KEY (task_id)
     );
+
+    -- Goals: Mission -> Goals/OKRs -> Projects -> Tasks
+    CREATE TABLE IF NOT EXISTS goals (
+      id TEXT PRIMARY KEY,
+      title TEXT NOT NULL,
+      description TEXT NOT NULL DEFAULT '',
+      type TEXT NOT NULL DEFAULT 'goal'
+        CHECK(type IN ('goal','okr','key-result')),
+      parent_goal_id TEXT REFERENCES goals(id) ON DELETE SET NULL,
+      owner_agent_id TEXT,
+      status TEXT NOT NULL DEFAULT 'active'
+        CHECK(status IN ('active','completed','paused','cancelled')),
+      target_value REAL,
+      current_value REAL DEFAULT 0,
+      target_date TEXT,
+      progress INTEGER NOT NULL DEFAULT 0
+        CHECK(progress >= 0 AND progress <= 100),
+      created_at TEXT NOT NULL DEFAULT (datetime('now')),
+      updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+    );
   `)
 
   // Additive migrations for existing databases (idempotent)
@@ -134,6 +154,7 @@ function migrate(db: Database.Database) {
   addColumn('tasks', 'started_at', 'TEXT')
   addColumn('tasks', 'cancelled_at', 'TEXT')
   addColumn('tasks', 'hidden_at', 'TEXT')
+  addColumn('projects', 'goal_id', 'TEXT REFERENCES goals(id) ON DELETE SET NULL')
 }
 
 /**
