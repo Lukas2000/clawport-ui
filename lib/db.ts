@@ -121,6 +121,102 @@ function migrate(db: Database.Database) {
       PRIMARY KEY (task_id)
     );
 
+    -- Heartbeat configs: per-agent scheduling
+    CREATE TABLE IF NOT EXISTS heartbeat_configs (
+      agent_id TEXT PRIMARY KEY,
+      enabled INTEGER NOT NULL DEFAULT 0,
+      interval_minutes INTEGER NOT NULL DEFAULT 60,
+      max_concurrent_runs INTEGER NOT NULL DEFAULT 1,
+      last_beat_at TEXT,
+      next_beat_at TEXT,
+      consecutive_errors INTEGER NOT NULL DEFAULT 0,
+      last_error TEXT,
+      created_at TEXT NOT NULL DEFAULT (datetime('now')),
+      updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+    );
+
+    -- Heartbeat runs: execution history
+    CREATE TABLE IF NOT EXISTS heartbeat_runs (
+      id TEXT PRIMARY KEY,
+      agent_id TEXT NOT NULL,
+      trigger TEXT NOT NULL DEFAULT 'scheduled'
+        CHECK(trigger IN ('scheduled','task-assigned','mention','manual')),
+      status TEXT NOT NULL DEFAULT 'queued'
+        CHECK(status IN ('queued','running','succeeded','failed','cancelled','timed_out')),
+      started_at TEXT,
+      finished_at TEXT,
+      task_id TEXT REFERENCES tasks(id) ON DELETE SET NULL,
+      tasks_checked INTEGER NOT NULL DEFAULT 0,
+      tasks_executed INTEGER NOT NULL DEFAULT 0,
+      error TEXT,
+      result TEXT,
+      usage_json TEXT DEFAULT '{}',
+      created_at TEXT NOT NULL DEFAULT (datetime('now'))
+    );
+    CREATE INDEX IF NOT EXISTS idx_hb_runs_agent ON heartbeat_runs(agent_id, created_at DESC);
+
+    -- Agent runtime status
+    CREATE TABLE IF NOT EXISTS agent_status (
+      agent_id TEXT PRIMARY KEY,
+      status TEXT NOT NULL DEFAULT 'idle'
+        CHECK(status IN ('idle','active','working','paused','errored','offline')),
+      current_task_id TEXT,
+      last_active_at TEXT,
+      tasks_completed_total INTEGER NOT NULL DEFAULT 0,
+      tasks_failed_total INTEGER NOT NULL DEFAULT 0,
+      total_input_tokens INTEGER NOT NULL DEFAULT 0,
+      total_output_tokens INTEGER NOT NULL DEFAULT 0,
+      total_cost_cents INTEGER NOT NULL DEFAULT 0,
+      session_id TEXT,
+      last_run_status TEXT,
+      last_error TEXT,
+      updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+    );
+
+    -- Agent session persistence
+    CREATE TABLE IF NOT EXISTS agent_sessions (
+      id TEXT PRIMARY KEY,
+      agent_id TEXT NOT NULL,
+      task_key TEXT,
+      session_type TEXT NOT NULL DEFAULT 'heartbeat'
+        CHECK(session_type IN ('heartbeat','chat','task')),
+      context_summary TEXT,
+      state_data TEXT NOT NULL DEFAULT '{}',
+      last_run_id TEXT,
+      last_error TEXT,
+      created_at TEXT NOT NULL DEFAULT (datetime('now')),
+      updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+    );
+    CREATE UNIQUE INDEX IF NOT EXISTS idx_session_agent_task ON agent_sessions(agent_id, task_key);
+
+    -- Granular cost tracking
+    CREATE TABLE IF NOT EXISTS cost_events (
+      id TEXT PRIMARY KEY,
+      agent_id TEXT NOT NULL,
+      run_id TEXT,
+      task_id TEXT,
+      project_id TEXT,
+      goal_id TEXT,
+      provider TEXT NOT NULL DEFAULT 'anthropic',
+      model TEXT NOT NULL,
+      input_tokens INTEGER NOT NULL DEFAULT 0,
+      output_tokens INTEGER NOT NULL DEFAULT 0,
+      cached_input_tokens INTEGER NOT NULL DEFAULT 0,
+      cost_cents INTEGER NOT NULL DEFAULT 0,
+      occurred_at TEXT NOT NULL DEFAULT (datetime('now')),
+      created_at TEXT NOT NULL DEFAULT (datetime('now'))
+    );
+    CREATE INDEX IF NOT EXISTS idx_cost_agent ON cost_events(agent_id, occurred_at DESC);
+
+    -- Optional per-agent budgets
+    CREATE TABLE IF NOT EXISTS agent_budgets (
+      agent_id TEXT PRIMARY KEY,
+      monthly_limit_cents INTEGER,
+      current_month_spent_cents INTEGER NOT NULL DEFAULT 0,
+      month_key TEXT NOT NULL DEFAULT (strftime('%Y-%m','now')),
+      updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+    );
+
     -- Goals: Mission -> Goals/OKRs -> Projects -> Tasks
     CREATE TABLE IF NOT EXISTS goals (
       id TEXT PRIMARY KEY,

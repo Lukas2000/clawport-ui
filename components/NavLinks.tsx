@@ -36,7 +36,7 @@ const NAV_SECTIONS: NavSection[] = [
   {
     label: 'Workspace',
     items: [
-      { href: '/', label: 'Map', icon: Map, badge: 'agents' },
+      { href: '/', label: 'Dashboard', icon: Map, badge: 'agents' },
       { href: '/team', label: 'Team', icon: Users },
       { href: '/mission', label: 'Mission', icon: Compass },
       { href: '/goals', label: 'Goals', icon: Target },

@@ -403,6 +403,109 @@ export interface TemplateCategory {
   count: number
 }
 
+// ── Heartbeat Types ──────────────────────────────────────────
+
+export interface HeartbeatConfig {
+  agentId: string
+  enabled: boolean
+  intervalMinutes: number
+  maxConcurrentRuns: number
+  lastBeatAt: string | null
+  nextBeatAt: string | null
+  consecutiveErrors: number
+  lastError: string | null
+  createdAt: string
+  updatedAt: string
+}
+
+export type HeartbeatTrigger = 'scheduled' | 'task-assigned' | 'mention' | 'manual'
+export type HeartbeatRunStatus = 'queued' | 'running' | 'succeeded' | 'failed' | 'cancelled' | 'timed_out'
+
+export interface HeartbeatRun {
+  id: string
+  agentId: string
+  trigger: HeartbeatTrigger
+  status: HeartbeatRunStatus
+  startedAt: string | null
+  finishedAt: string | null
+  taskId: string | null
+  tasksChecked: number
+  tasksExecuted: number
+  error: string | null
+  result: string | null
+  usageJson: string
+  createdAt: string
+}
+
+// ── Agent Status Types ───────────────────────────────────────
+
+export type AgentRuntimeStatus = 'idle' | 'active' | 'working' | 'paused' | 'errored' | 'offline'
+
+export interface AgentStatus {
+  agentId: string
+  status: AgentRuntimeStatus
+  currentTaskId: string | null
+  lastActiveAt: string | null
+  tasksCompletedTotal: number
+  tasksFailedTotal: number
+  totalInputTokens: number
+  totalOutputTokens: number
+  totalCostCents: number
+  sessionId: string | null
+  lastRunStatus: string | null
+  lastError: string | null
+  updatedAt: string
+}
+
+export type SessionType = 'heartbeat' | 'chat' | 'task'
+
+export interface AgentSession {
+  id: string
+  agentId: string
+  taskKey: string | null
+  sessionType: SessionType
+  contextSummary: string | null
+  stateData: string
+  lastRunId: string | null
+  lastError: string | null
+  createdAt: string
+  updatedAt: string
+}
+
+// ── Cost Event Types ─────────────────────────────────────────
+
+export interface CostEvent {
+  id: string
+  agentId: string
+  runId: string | null
+  taskId: string | null
+  projectId: string | null
+  goalId: string | null
+  provider: string
+  model: string
+  inputTokens: number
+  outputTokens: number
+  cachedInputTokens: number
+  costCents: number
+  occurredAt: string
+  createdAt: string
+}
+
+export interface AgentBudget {
+  agentId: string
+  monthlyLimitCents: number | null
+  currentMonthSpentCents: number
+  monthKey: string
+  updatedAt: string
+}
+
+export interface BudgetCheckResult {
+  allowed: boolean
+  remaining: number | null
+  spent: number
+  limit: number | null
+}
+
 // ── Mission Types ─────────────────────────────────────────────
 
 export interface MissionValue {
