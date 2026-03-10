@@ -666,7 +666,7 @@ export function ConversationView({ agent, conversation, onUpdate, onBack }: Conv
         alignItems: 'center',
         padding: '0 var(--space-4)',
         borderBottom: '1px solid var(--separator)',
-        background: 'var(--material-thick)',
+        background: 'var(--header-gradient, var(--material-thick))',
         backdropFilter: 'blur(20px)',
         WebkitBackdropFilter: 'blur(20px)',
         position: 'sticky',
@@ -1066,6 +1066,7 @@ export function ConversationView({ agent, conversation, onUpdate, onBack }: Conv
             borderRadius: 'var(--radius-lg)',
             padding: 'var(--space-2) var(--space-3)',
             border: '1px solid var(--separator)',
+            boxShadow: 'var(--input-inner-shadow)',
           }}>
             {/* Attach button */}
             <button
@@ -1145,8 +1146,9 @@ export function ConversationView({ agent, conversation, onUpdate, onBack }: Conv
                 width: 32,
                 height: 32,
                 borderRadius: '50%',
-                background: hasContent ? 'var(--accent)' : 'var(--fill-tertiary)',
+                background: hasContent ? 'var(--accent-gradient, var(--accent))' : 'var(--fill-tertiary)',
                 color: hasContent ? '#000' : 'var(--text-quaternary)',
+                boxShadow: hasContent ? 'var(--accent-glow)' : 'none',
                 border: 'none',
                 cursor: hasContent ? 'pointer' : 'default',
                 display: 'flex',

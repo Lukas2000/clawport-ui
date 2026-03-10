@@ -27,10 +27,11 @@ function timeAgo(dateStr: string): string {
 function TotalCard({ count }: { count: number }) {
   return (
     <div style={{
-      background: 'var(--material-regular)',
+      background: 'var(--surface-gradient, transparent), var(--material-regular)',
       border: '1px solid var(--separator)',
       borderRadius: 'var(--radius-md)',
       padding: 'var(--space-4)',
+      transition: 'box-shadow 300ms var(--ease-smooth), transform 300ms var(--ease-spring)',
     }}>
       <div style={{ fontSize: 'var(--text-caption1)', color: 'var(--text-tertiary)', fontWeight: 'var(--weight-medium)', marginBottom: 'var(--space-1)' }}>
         Total Events
@@ -46,10 +47,11 @@ function ErrorCard({ count }: { count: number }) {
   const hasErrors = count > 0
   return (
     <div style={{
-      background: 'var(--material-regular)',
+      background: 'var(--surface-gradient, transparent), var(--material-regular)',
       border: '1px solid var(--separator)',
       borderRadius: 'var(--radius-md)',
       padding: 'var(--space-4)',
+      transition: 'box-shadow 300ms var(--ease-smooth), transform 300ms var(--ease-spring)',
     }}>
       <div style={{ fontSize: 'var(--text-caption1)', color: 'var(--text-tertiary)', fontWeight: 'var(--weight-medium)', marginBottom: 'var(--space-1)' }}>
         Errors
@@ -73,10 +75,11 @@ function ErrorCard({ count }: { count: number }) {
 function SourcesCard({ cron, config }: { cron: number; config: number }) {
   return (
     <div style={{
-      background: 'var(--material-regular)',
+      background: 'var(--surface-gradient, transparent), var(--material-regular)',
       border: '1px solid var(--separator)',
       borderRadius: 'var(--radius-md)',
       padding: 'var(--space-4)',
+      transition: 'box-shadow 300ms var(--ease-smooth), transform 300ms var(--ease-spring)',
     }}>
       <div style={{ fontSize: 'var(--text-caption1)', color: 'var(--text-tertiary)', fontWeight: 'var(--weight-medium)', marginBottom: 'var(--space-1)' }}>
         Sources
@@ -154,7 +157,7 @@ export default function ActivityPage() {
       <header
         className="sticky top-0 z-10 flex-shrink-0"
         style={{
-          background: 'var(--material-regular)',
+          background: 'var(--header-gradient, var(--material-regular))',
           backdropFilter: 'blur(40px) saturate(180%)',
           WebkitBackdropFilter: 'blur(40px) saturate(180%)',
           borderBottom: '1px solid var(--separator)',
@@ -162,7 +165,7 @@ export default function ActivityPage() {
       >
         <div className="flex items-center justify-between" style={{ padding: 'var(--space-4) var(--space-6)' }}>
           <div>
-            <h1 style={{
+            <h1 className="page-title" style={{
               fontSize: 'var(--text-title1)',
               fontWeight: 'var(--weight-bold)',
               color: 'var(--text-primary)',

@@ -13,8 +13,8 @@ function Skeleton({ className, width, height, style, ...props }: SkeletonProps) 
         className
       )}
       style={{
-        background: `linear-gradient(90deg, var(--fill-secondary) 25%, var(--fill-tertiary) 50%, var(--fill-secondary) 75%)`,
-        backgroundSize: '200% 100%',
+        background: `linear-gradient(90deg, var(--fill-secondary) 0%, var(--fill-tertiary) 37%, var(--fill-secondary) 63%, var(--fill-secondary) 100%)`,
+        backgroundSize: '300% 100%',
         width,
         height,
         ...style,

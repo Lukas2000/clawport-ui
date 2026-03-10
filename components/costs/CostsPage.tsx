@@ -33,10 +33,11 @@ function fmtDuration(ms: number): string {
 function SummaryCard({ label, children }: { label: string; children: React.ReactNode }) {
   return (
     <div style={{
-      background: 'var(--material-regular)',
+      background: 'var(--surface-gradient, transparent), var(--material-regular)',
       border: '1px solid var(--separator)',
       borderRadius: 'var(--radius-md)',
       padding: 'var(--space-4)',
+      transition: 'box-shadow 300ms var(--ease-smooth), transform 300ms var(--ease-spring)',
     }}>
       <div style={{ fontSize: 'var(--text-caption1)', color: 'var(--text-tertiary)', fontWeight: 'var(--weight-medium)', marginBottom: 'var(--space-1)' }}>
         {label}
@@ -266,11 +267,12 @@ function TopCrons({ jobCosts, jobName }: { jobCosts: CostSummary['jobCosts']; jo
           <div
             key={job.jobId}
             style={{
-              background: 'var(--material-regular)',
+              background: 'var(--surface-gradient, transparent), var(--material-regular)',
               border: '1px solid var(--separator)',
               borderRadius: 'var(--radius-md)',
               borderLeft: '3px solid var(--accent)',
               padding: 'var(--space-4)',
+              transition: 'transform 200ms var(--ease-spring), box-shadow 200ms var(--ease-smooth)',
             }}
           >
             <div style={{
@@ -470,7 +472,7 @@ export function CostsPage() {
           padding: 'var(--space-4) var(--space-6)',
         }}
       >
-        <h1 style={{
+        <h1 className="page-title" style={{
           fontSize: 'var(--text-title1)',
           fontWeight: 'var(--weight-bold)',
           color: 'var(--text-primary)',

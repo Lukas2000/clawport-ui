@@ -157,7 +157,7 @@ export function HomeClient() {
             gap: 2,
             padding: 3,
             borderRadius: "var(--radius-sm)",
-            background: "var(--material-regular)",
+            background: "var(--surface-gradient, transparent), var(--material-regular)",
             backdropFilter: "blur(20px)",
             WebkitBackdropFilter: "blur(20px)",
             border: "1px solid var(--separator)",
@@ -294,7 +294,7 @@ export function HomeClient() {
               flexShrink: 0,
               overflowY: "auto",
               background: "var(--bg)",
-              boxShadow: "var(--shadow-overlay)",
+              boxShadow: "var(--shadow-overlay), 0 0 80px color-mix(in srgb, var(--accent) 6%, transparent)",
             }}
           >
             {/* ── Toolbar row ── */}

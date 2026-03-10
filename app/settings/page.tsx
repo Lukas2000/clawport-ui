@@ -137,6 +137,7 @@ export default function SettingsPage() {
       >
         {/* Page header */}
         <h1
+          className="page-title"
           style={{
             fontSize: 'var(--text-title1)',
             fontWeight: 'var(--weight-bold)',
@@ -164,7 +165,7 @@ export default function SettingsPage() {
           </div>
           <div
             style={{
-              background: 'var(--material-regular)',
+              background: 'var(--surface-gradient, transparent), var(--material-regular)',
               borderRadius: 'var(--radius-md)',
               border: '1px solid var(--separator)',
               padding: 'var(--space-4)',
@@ -270,7 +271,7 @@ export default function SettingsPage() {
           </div>
           <div
             style={{
-              background: 'var(--material-regular)',
+              background: 'var(--surface-gradient, transparent), var(--material-regular)',
               borderRadius: 'var(--radius-md)',
               border: '1px solid var(--separator)',
               overflow: 'hidden',
@@ -628,7 +629,7 @@ export default function SettingsPage() {
           </div>
           <div
             style={{
-              background: 'var(--material-regular)',
+              background: 'var(--surface-gradient, transparent), var(--material-regular)',
               borderRadius: 'var(--radius-md)',
               border: '1px solid var(--separator)',
               overflow: 'hidden',
@@ -865,7 +866,7 @@ export default function SettingsPage() {
         <section>
           <div
             style={{
-              background: 'var(--material-regular)',
+              background: 'var(--surface-gradient, transparent), var(--material-regular)',
               borderRadius: 'var(--radius-md)',
               border: '1px solid var(--separator)',
               padding: 'var(--space-4)',

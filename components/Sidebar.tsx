@@ -28,10 +28,11 @@ export function Sidebar() {
         style={{
           width: '220px',
           flexShrink: 0,
-          background: 'var(--sidebar-bg)',
+          background: 'linear-gradient(180deg, var(--sidebar-bg), color-mix(in srgb, var(--sidebar-bg) 95%, var(--bg)))',
           backdropFilter: 'blur(40px) saturate(180%)',
           WebkitBackdropFilter: 'blur(40px) saturate(180%)',
-          borderRight: '1px solid var(--separator)',
+          borderRight: '1px solid color-mix(in srgb, var(--separator) 60%, transparent)',
+          boxShadow: '1px 0 8px rgba(0,0,0,0.1)',
         }}
       >
         {/* App icon + title */}

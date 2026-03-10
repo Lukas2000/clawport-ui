@@ -270,7 +270,7 @@ export function LiveStreamWidget() {
           WebkitBackdropFilter: 'blur(40px) saturate(180%)',
           cursor: 'pointer',
           gap: 8,
-          boxShadow: '0 4px 24px rgba(0,0,0,0.25)',
+          boxShadow: '0 4px 24px rgba(0,0,0,0.25), 0 0 30px color-mix(in srgb, var(--accent) 8%, transparent)',
         }}
       >
         <span style={{
@@ -315,7 +315,7 @@ export function LiveStreamWidget() {
       background: 'var(--material-regular)',
       backdropFilter: 'blur(40px) saturate(180%)',
       WebkitBackdropFilter: 'blur(40px) saturate(180%)',
-      boxShadow: '0 8px 40px rgba(0,0,0,0.35)',
+      boxShadow: '0 8px 40px rgba(0,0,0,0.35), 0 0 60px color-mix(in srgb, var(--accent) 5%, transparent)',
       display: 'flex',
       flexDirection: 'column',
       overflow: 'hidden',
