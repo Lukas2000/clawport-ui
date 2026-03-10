@@ -7,7 +7,6 @@ import type { Pipeline } from "@/lib/cron-pipelines";
 import { formatDuration } from "@/lib/cron-utils";
 import { Skeleton } from "@/components/ui/skeleton";
 import { RefreshCw, BarChart3, Calendar, GitBranch, Copy, Check, Heart } from "lucide-react";
-import { ErrorState } from "@/components/ErrorState";
 import { WeeklySchedule } from "@/components/crons/WeeklySchedule";
 import { PipelineGraph } from "@/components/crons/PipelineGraph";
 
@@ -479,9 +478,42 @@ function HeartbeatAgentsSection({ agents }: { agents: Agent[] }) {
     );
   }
 
-  if (configs.length === 0) return null;
-
   const agentMap = new Map(agents.map(a => [a.id, a]));
+
+  if (configs.length === 0) {
+    return (
+      <div style={{ marginTop: "var(--space-5)" }}>
+        <div style={{ display: "flex", alignItems: "center", gap: "var(--space-2)", marginBottom: "var(--space-3)" }}>
+          <Heart size={14} style={{ color: "var(--text-tertiary)" }} />
+          <span style={{ fontSize: "var(--text-footnote)", fontWeight: "var(--weight-semibold)", color: "var(--text-secondary)" }}>
+            Heartbeat Agents
+          </span>
+        </div>
+        <div style={{
+          borderRadius: "var(--radius-md)",
+          background: "var(--material-regular)",
+          border: "1px solid var(--separator)",
+          padding: "var(--space-4)",
+          display: "flex",
+          alignItems: "center",
+          gap: "var(--space-3)",
+        }}>
+          <span style={{ fontSize: "var(--text-caption1)", color: "var(--text-tertiary)" }}>
+            No heartbeat agents configured. Enable heartbeat on an agent&apos;s detail page to schedule autonomous runs.
+          </span>
+          {agents.length > 0 && (
+            <Link
+              href={`/agents/${agents[0].id}`}
+              className="focus-ring"
+              style={{ fontSize: "var(--text-caption1)", color: "var(--system-blue)", textDecoration: "none", flexShrink: 0, fontWeight: "var(--weight-medium)" }}
+            >
+              Go to agent &rarr;
+            </Link>
+          )}
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div style={{ marginTop: "var(--space-5)" }}>
@@ -703,10 +735,6 @@ export default function CronsPage() {
     });
   }
 
-  if (error && crons.length === 0) {
-    return <ErrorState message={error} onRetry={refresh} />;
-  }
-
   return (
     <div className="h-full flex flex-col overflow-hidden animate-fade-in" style={{ background: "var(--bg)" }}>
       {/* ── Sticky header ──────────────────────────────────────── */}
@@ -807,6 +835,37 @@ export default function CronsPage() {
           </>
         ) : (
           <>
+            {/* ─── Crons load error banner ──────────────────── */}
+            {error && (
+              <div style={{
+                display: "flex",
+                alignItems: "flex-start",
+                gap: "var(--space-3)",
+                background: "rgba(255,69,58,0.06)",
+                borderLeft: "3px solid var(--system-red)",
+                borderRadius: "var(--radius-sm)",
+                padding: "var(--space-3) var(--space-4)",
+                marginBottom: "var(--space-4)",
+              }}>
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div style={{ fontSize: "var(--text-footnote)", fontWeight: "var(--weight-semibold)", color: "var(--system-red)", marginBottom: 2 }}>
+                    Failed to load scheduled jobs
+                  </div>
+                  <div style={{ fontSize: "var(--text-caption1)", color: "var(--text-tertiary)", wordBreak: "break-word" }}>
+                    {error}
+                  </div>
+                </div>
+                <button
+                  onClick={refresh}
+                  className="btn-ghost focus-ring flex-shrink-0"
+                  style={{ padding: "4px 10px", borderRadius: "var(--radius-sm)", fontSize: "var(--text-caption1)", fontWeight: "var(--weight-medium)", display: "inline-flex", alignItems: "center", gap: 4 }}
+                >
+                  <RefreshCw size={12} />
+                  Retry
+                </button>
+              </div>
+            )}
+
             {/* ─── OVERVIEW TAB ─────────────────────────────── */}
             {tab === "overview" && (
               <>
