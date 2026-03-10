@@ -4,7 +4,9 @@ import { useEffect, useState, useCallback } from 'react'
 import type { Goal, Agent } from '@/lib/types'
 import { GoalTree } from '@/components/goals/GoalTree'
 import { NewGoalDialog } from '@/components/goals/NewGoalDialog'
-import { Plus } from 'lucide-react'
+import { Skeleton } from '@/components/ui/skeleton'
+import { EmptyState } from '@/components/ui/EmptyState'
+import { Plus, Target } from 'lucide-react'
 
 export default function GoalsPage() {
   const [goals, setGoals] = useState<Goal[]>([])
@@ -117,9 +119,18 @@ export default function GoalsPage() {
       <div style={{ flex: 1, overflow: 'auto', display: 'flex' }}>
         <div style={{ flex: 1, padding: '16px 24px', overflow: 'auto' }}>
           {loading ? (
-            <div style={{ padding: '24px', color: 'var(--text-quaternary)', fontSize: '13px' }}>
-              Loading goals...
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+              {Array.from({ length: 5 }, (_, i) => (
+                <Skeleton key={i} style={{ height: 56, borderRadius: '8px' }} />
+              ))}
             </div>
+          ) : goals.length === 0 ? (
+            <EmptyState
+              icon={Target}
+              title="No goals yet"
+              description="Create goals and OKRs to track objectives across your organization."
+              action={{ label: 'Create Goal', onClick: () => setShowCreate(true) }}
+            />
           ) : (
             <GoalTree
               goals={goals}

@@ -11,20 +11,30 @@ import {
   Bot,
   Timer,
   Settings,
+  CircleDot,
+  Target,
+  FolderKanban,
+  Shield,
+  Plus,
+  DollarSign,
+  Zap,
 } from 'lucide-react';
-import type { Agent, CronJob } from '@/lib/types';
+import type { Agent, CronJob, Task, Goal, Project } from '@/lib/types';
 
 // ---------------------------------------------------------------------------
 // Types
 // ---------------------------------------------------------------------------
+
+type SearchCategory = 'Actions' | 'Issues' | 'Goals' | 'Projects' | 'Agents' | 'Pages' | 'Scheduling';
 
 interface SearchResult {
   id: string;
   label: string;
   subtitle?: string;
   icon: React.ReactNode;
-  href: string;
-  category: 'Agents' | 'Pages' | 'Scheduling';
+  href?: string;
+  action?: () => void;
+  category: SearchCategory;
 }
 
 // ---------------------------------------------------------------------------
@@ -33,9 +43,14 @@ interface SearchResult {
 
 const STATIC_PAGES: SearchResult[] = [
   { id: 'page-map', label: 'Map', icon: <Map size={16} />, href: '/', category: 'Pages' },
+  { id: 'page-issues', label: 'Issues', icon: <CircleDot size={16} />, href: '/issues', category: 'Pages' },
+  { id: 'page-goals', label: 'Goals', icon: <Target size={16} />, href: '/goals', category: 'Pages' },
+  { id: 'page-projects', label: 'Projects', icon: <FolderKanban size={16} />, href: '/projects', category: 'Pages' },
   { id: 'page-messages', label: 'Messages', icon: <MessageSquare size={16} />, href: '/chat', category: 'Pages' },
   { id: 'page-crons', label: 'Scheduling', icon: <Clock size={16} />, href: '/crons', category: 'Pages' },
   { id: 'page-memory', label: 'Memory', icon: <Brain size={16} />, href: '/memory', category: 'Pages' },
+  { id: 'page-costs', label: 'Costs', icon: <DollarSign size={16} />, href: '/costs', category: 'Pages' },
+  { id: 'page-audit', label: 'Audit Trail', icon: <Shield size={16} />, href: '/audit', category: 'Pages' },
   { id: 'page-settings', label: 'Settings', icon: <Settings size={16} />, href: '/settings', category: 'Pages' },
 ];
 
@@ -55,6 +70,19 @@ function fuzzyMatch(query: string, target: string): boolean {
   }
   return qi === q.length;
 }
+
+// ---------------------------------------------------------------------------
+// Status label helpers
+// ---------------------------------------------------------------------------
+
+const STATUS_LABELS: Record<string, string> = {
+  backlog: 'Backlog',
+  todo: 'Todo',
+  'in-progress': 'In Progress',
+  review: 'Review',
+  done: 'Done',
+  cancelled: 'Cancelled',
+};
 
 // ---------------------------------------------------------------------------
 // Search trigger button (used in sidebar)
@@ -112,6 +140,9 @@ export function GlobalSearch() {
   const [activeIndex, setActiveIndex] = useState(0);
   const [agents, setAgents] = useState<Agent[]>([]);
   const [crons, setCrons] = useState<CronJob[]>([]);
+  const [tasks, setTasks] = useState<Task[]>([]);
+  const [goals, setGoals] = useState<Goal[]>([]);
+  const [projects, setProjects] = useState<Project[]>([]);
   const inputRef = useRef<HTMLInputElement>(null);
   const listRef = useRef<HTMLDivElement>(null);
   const router = useRouter();
@@ -149,26 +180,25 @@ export function GlobalSearch() {
     // Reset state
     setQuery('');
     setActiveIndex(0);
-    // Fetch agents
-    fetch('/api/agents')
-      .then((r) => {
-        if (!r.ok) throw new Error(`HTTP ${r.status}`);
-        return r.json();
-      })
-      .then((data: unknown) => {
-        if (Array.isArray(data)) setAgents(data as Agent[]);
-      })
-      .catch(() => setAgents([]));
-    // Fetch crons
-    fetch('/api/crons')
-      .then((r) => {
-        if (!r.ok) throw new Error(`HTTP ${r.status}`);
-        return r.json();
-      })
-      .then((data: unknown) => {
-        setCrons(Array.isArray(data) ? data as CronJob[] : (data as { crons?: CronJob[] })?.crons ?? []);
-      })
-      .catch(() => setCrons([]));
+
+    const fetches = [
+      fetch('/api/agents').then(r => r.ok ? r.json() : []).then((d: unknown) => {
+        if (Array.isArray(d)) setAgents(d as Agent[]);
+      }),
+      fetch('/api/crons').then(r => r.ok ? r.json() : []).then((d: unknown) => {
+        setCrons(Array.isArray(d) ? d as CronJob[] : (d as { crons?: CronJob[] })?.crons ?? []);
+      }),
+      fetch('/api/tasks?exclude_hidden=true').then(r => r.ok ? r.json() : []).then((d: unknown) => {
+        if (Array.isArray(d)) setTasks(d as Task[]);
+      }),
+      fetch('/api/goals').then(r => r.ok ? r.json() : []).then((d: unknown) => {
+        if (Array.isArray(d)) setGoals(d as Goal[]);
+      }),
+      fetch('/api/projects').then(r => r.ok ? r.json() : []).then((d: unknown) => {
+        if (Array.isArray(d)) setProjects(d as Project[]);
+      }),
+    ];
+    Promise.all(fetches).catch(() => {});
   }, [open]);
 
   // -----------------------------------------------------------------------
@@ -176,7 +206,6 @@ export function GlobalSearch() {
   // -----------------------------------------------------------------------
   useEffect(() => {
     if (open) {
-      // Small delay to ensure the input is mounted
       requestAnimationFrame(() => {
         inputRef.current?.focus();
       });
@@ -202,6 +231,85 @@ export function GlobalSearch() {
   // -----------------------------------------------------------------------
   const results = useMemo(() => {
     const all: SearchResult[] = [];
+
+    // Action commands (shown when no query or query starts with relevant text)
+    all.push(
+      {
+        id: 'action-new-issue',
+        label: 'Create New Issue',
+        icon: <Plus size={16} style={{ color: 'var(--system-blue)' }} />,
+        href: '/issues',
+        action: () => {
+          router.push('/issues?create=1');
+        },
+        category: 'Actions',
+      },
+      {
+        id: 'action-new-goal',
+        label: 'Create New Goal',
+        icon: <Plus size={16} style={{ color: 'var(--system-purple)' }} />,
+        href: '/goals',
+        action: () => {
+          router.push('/goals?create=1');
+        },
+        category: 'Actions',
+      },
+      {
+        id: 'action-new-project',
+        label: 'Create New Project',
+        icon: <Plus size={16} style={{ color: 'var(--system-green)' }} />,
+        href: '/projects',
+        action: () => {
+          router.push('/projects?create=1');
+        },
+        category: 'Actions',
+      },
+    );
+
+    // Issues (limit to 8 in no-query mode)
+    const taskList = query.trim()
+      ? tasks.filter(t => fuzzyMatch(query, t.title) || (t.identifier && fuzzyMatch(query, t.identifier)))
+      : tasks.slice(0, 8);
+    taskList.forEach((t) => {
+      all.push({
+        id: `issue-${t.id}`,
+        label: t.identifier ? `${t.identifier} ${t.title}` : t.title,
+        subtitle: STATUS_LABELS[t.status] ?? t.status,
+        icon: <CircleDot size={16} style={{ color: t.status === 'done' ? '#22C55E' : t.status === 'in-progress' ? '#F59E0B' : 'var(--text-tertiary)' }} />,
+        href: `/issues?selected=${t.id}`,
+        category: 'Issues',
+      });
+    });
+
+    // Goals (limit to 5 in no-query mode)
+    const goalList = query.trim()
+      ? goals.filter(g => fuzzyMatch(query, g.title))
+      : goals.slice(0, 5);
+    goalList.forEach((g) => {
+      all.push({
+        id: `goal-${g.id}`,
+        label: g.title,
+        subtitle: `${g.progress}% ${g.status}`,
+        icon: <Target size={16} style={{ color: g.status === 'completed' ? '#22C55E' : '#8B5CF6' }} />,
+        href: `/goals?selected=${g.id}`,
+        category: 'Goals',
+      });
+    });
+
+    // Projects (limit to 5 in no-query mode)
+    const projectList = query.trim()
+      ? projects.filter(p => fuzzyMatch(query, p.name))
+      : projects.slice(0, 5);
+    projectList.forEach((p) => {
+      all.push({
+        id: `project-${p.id}`,
+        label: p.name,
+        subtitle: `${p.progress}% ${p.status}`,
+        icon: <FolderKanban size={16} style={{ color: p.status === 'active' ? '#22C55E' : 'var(--text-tertiary)' }} />,
+        href: `/projects?selected=${p.id}`,
+        category: 'Projects',
+      });
+    });
 
     // Agents
     agents.forEach((a) => {
@@ -237,14 +345,14 @@ export function GlobalSearch() {
         fuzzyMatch(query, r.label) ||
         (r.subtitle && fuzzyMatch(query, r.subtitle))
     );
-  }, [query, agents, crons]);
+  }, [query, agents, crons, tasks, goals, projects, router]);
 
   // -----------------------------------------------------------------------
   // Group results by category
   // -----------------------------------------------------------------------
   const grouped = useMemo(() => {
     const groups: { category: string; items: SearchResult[] }[] = [];
-    const categoryOrder = ['Agents', 'Pages', 'Scheduling'];
+    const categoryOrder: SearchCategory[] = ['Actions', 'Issues', 'Goals', 'Projects', 'Agents', 'Pages', 'Scheduling'];
     for (const cat of categoryOrder) {
       const items = results.filter((r) => r.category === cat);
       if (items.length > 0) {
@@ -263,7 +371,11 @@ export function GlobalSearch() {
   const navigate = useCallback(
     (result: SearchResult) => {
       setOpen(false);
-      router.push(result.href);
+      if (result.action) {
+        result.action();
+      } else if (result.href) {
+        router.push(result.href);
+      }
     },
     [router]
   );
@@ -363,7 +475,7 @@ export function GlobalSearch() {
           overflow: 'hidden',
           display: 'flex',
           flexDirection: 'column',
-          maxHeight: '480px',
+          maxHeight: '520px',
         }}
       >
         {/* Search input */}
@@ -386,7 +498,7 @@ export function GlobalSearch() {
             type="text"
             value={query}
             onChange={(e) => setQuery(e.target.value)}
-            placeholder="Search ClawPort..."
+            placeholder="Search issues, goals, agents..."
             aria-label="Search ClawPort"
             style={{
               flex: 1,
@@ -499,7 +611,9 @@ export function GlobalSearch() {
                         alignItems: 'center',
                         justifyContent: 'center',
                         borderRadius: '6px',
-                        background: 'var(--fill-quaternary)',
+                        background: item.category === 'Actions'
+                          ? 'color-mix(in srgb, var(--accent) 12%, transparent)'
+                          : 'var(--fill-quaternary)',
                         flexShrink: 0,
                         color: 'var(--text-secondary)',
                       }}
@@ -510,10 +624,8 @@ export function GlobalSearch() {
                       <div
                         style={{
                           fontSize: '13px',
-                          fontWeight: 500,
-                          color: isActive
-                            ? 'var(--text-primary)'
-                            : 'var(--text-primary)',
+                          fontWeight: item.category === 'Actions' ? 600 : 500,
+                          color: 'var(--text-primary)',
                           overflow: 'hidden',
                           textOverflow: 'ellipsis',
                           whiteSpace: 'nowrap',
@@ -535,6 +647,9 @@ export function GlobalSearch() {
                         </div>
                       )}
                     </div>
+                    {item.category === 'Actions' && (
+                      <Zap size={12} style={{ color: 'var(--text-quaternary)', flexShrink: 0 }} />
+                    )}
                   </button>
                 );
               })}

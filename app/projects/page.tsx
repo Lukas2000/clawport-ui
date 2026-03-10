@@ -2,6 +2,9 @@
 
 import { useEffect, useState, useCallback } from 'react'
 import type { Project, Agent } from '@/lib/types'
+import { Skeleton } from '@/components/ui/skeleton'
+import { EmptyState } from '@/components/ui/EmptyState'
+import { FolderKanban } from 'lucide-react'
 
 const STATUS_COLORS: Record<string, string> = {
   planning: 'var(--system-blue)',
@@ -20,10 +23,13 @@ export default function ProjectsPage() {
   const [projects, setProjects] = useState<Project[]>([])
   const [agents, setAgents] = useState<Agent[]>([])
   const [showCreate, setShowCreate] = useState(false)
+  const [loading, setLoading] = useState(true)
 
   const load = useCallback(() => {
-    fetch('/api/projects').then((r) => r.json()).then(setProjects).catch(() => {})
-    fetch('/api/agents').then((r) => r.json()).then((d: unknown) => { if (Array.isArray(d)) setAgents(d) }).catch(() => {})
+    Promise.all([
+      fetch('/api/projects').then((r) => r.json()).then(setProjects).catch(() => {}),
+      fetch('/api/agents').then((r) => r.json()).then((d: unknown) => { if (Array.isArray(d)) setAgents(d) }).catch(() => {}),
+    ]).finally(() => setLoading(false))
   }, [])
 
   useEffect(() => { load() }, [load])
@@ -56,15 +62,24 @@ export default function ProjectsPage() {
         />
       )}
 
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))', gap: '16px' }}>
-        {projects.map((p) => (
-          <ProjectCard key={p.id} project={p} agent={agentFor(p.leadAgentId)} onUpdate={load} />
-        ))}
-      </div>
-
-      {projects.length === 0 && !showCreate && (
-        <div style={{ textAlign: 'center', padding: '60px 20px', color: 'var(--text-tertiary)' }}>
-          No projects yet. Create one to get started.
+      {loading ? (
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))', gap: '16px' }}>
+          {Array.from({ length: 4 }, (_, i) => (
+            <Skeleton key={i} style={{ height: 180, borderRadius: 'var(--radius-lg)' }} />
+          ))}
+        </div>
+      ) : projects.length === 0 && !showCreate ? (
+        <EmptyState
+          icon={FolderKanban}
+          title="No projects yet"
+          description="Create a project to organize issues and track progress across your team."
+          action={{ label: 'Create Project', onClick: () => setShowCreate(true) }}
+        />
+      ) : (
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))', gap: '16px' }}>
+          {projects.map((p) => (
+            <ProjectCard key={p.id} project={p} agent={agentFor(p.leadAgentId)} onUpdate={load} />
+          ))}
         </div>
       )}
     </div>
