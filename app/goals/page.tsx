@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useState, useCallback } from 'react'
-import type { Goal, Agent, Project } from '@/lib/types'
+import type { Goal, Agent, Project, Product } from '@/lib/types'
 import { GoalTree } from '@/components/goals/GoalTree'
 import { NewGoalDialog } from '@/components/goals/NewGoalDialog'
 import { Skeleton } from '@/components/ui/skeleton'
@@ -21,20 +21,26 @@ export default function GoalsPage() {
   const [goals, setGoals] = useState<Goal[]>([])
   const [agents, setAgents] = useState<Agent[]>([])
   const [projects, setProjects] = useState<Project[]>([])
+  const [products, setProducts] = useState<Product[]>([])
   const [loading, setLoading] = useState(true)
   const [showCreate, setShowCreate] = useState(false)
   const [selectedGoal, setSelectedGoal] = useState<Goal | null>(null)
 
   const loadData = useCallback(async () => {
     try {
-      const [goalsRes, agentsRes, projectsRes] = await Promise.all([
+      const [goalsRes, agentsRes, projectsRes, productsRes] = await Promise.all([
         fetch('/api/goals'),
         fetch('/api/agents'),
         fetch('/api/projects'),
+        fetch('/api/products'),
       ])
       if (goalsRes.ok) setGoals(await goalsRes.json())
       if (agentsRes.ok) setAgents(await agentsRes.json())
       if (projectsRes.ok) setProjects(await projectsRes.json())
+      if (productsRes.ok) {
+        const d = await productsRes.json()
+        if (Array.isArray(d)) setProducts(d)
+      }
     } finally {
       setLoading(false)
     }
@@ -289,6 +295,30 @@ export default function GoalsPage() {
                     <option value="">Unassigned</option>
                     {agents.map(a => (
                       <option key={a.id} value={a.id}>{a.emoji} {a.name}</option>
+                    ))}
+                  </select>
+                </div>
+
+                {/* Product */}
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  <span style={{ fontSize: '11px', fontWeight: 500, color: 'var(--text-tertiary)', width: '72px' }}>Product</span>
+                  <select
+                    value={selectedGoal.productId ?? ''}
+                    onChange={(e) => handleUpdate(selectedGoal.id, { productId: e.target.value || null })}
+                    style={{
+                      background: 'transparent',
+                      border: '1px solid transparent',
+                      borderRadius: '4px',
+                      padding: '2px 4px',
+                      fontSize: '12px',
+                      color: 'var(--text-primary)',
+                      cursor: 'pointer',
+                      outline: 'none',
+                    }}
+                  >
+                    <option value="">No product</option>
+                    {products.map(p => (
+                      <option key={p.id} value={p.id}>{p.name}</option>
                     ))}
                   </select>
                 </div>

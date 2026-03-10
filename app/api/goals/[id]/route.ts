@@ -32,6 +32,7 @@ export async function PUT(
       type: body.type,
       parentGoalId: body.parentGoalId,
       ownerAgentId: body.ownerAgentId,
+      productId: body.productId,
       status: body.status,
       targetValue: body.targetValue,
       currentValue: body.currentValue,

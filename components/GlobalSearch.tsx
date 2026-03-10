@@ -47,7 +47,7 @@ const STATIC_PAGES: SearchResult[] = [
   { id: 'page-goals', label: 'Goals', icon: <Target size={16} />, href: '/goals', category: 'Pages' },
   { id: 'page-projects', label: 'Projects', icon: <FolderKanban size={16} />, href: '/projects', category: 'Pages' },
   { id: 'page-messages', label: 'Messages', icon: <MessageSquare size={16} />, href: '/chat', category: 'Pages' },
-  { id: 'page-crons', label: 'Scheduling', icon: <Clock size={16} />, href: '/crons', category: 'Pages' },
+  { id: 'page-crons', label: 'Scheduling', icon: <Clock size={16} />, href: '/scheduling', category: 'Pages' },
   { id: 'page-memory', label: 'Memory', icon: <Brain size={16} />, href: '/memory', category: 'Pages' },
   { id: 'page-costs', label: 'Costs', icon: <DollarSign size={16} />, href: '/costs', category: 'Pages' },
   { id: 'page-audit', label: 'Audit Trail', icon: <Shield size={16} />, href: '/audit', category: 'Pages' },
@@ -333,7 +333,7 @@ export function GlobalSearch() {
         label: c.name,
         subtitle: c.schedule,
         icon: <Timer size={16} />,
-        href: '/crons',
+        href: '/scheduling',
         category: 'Scheduling',
       });
     });

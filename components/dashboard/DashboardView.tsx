@@ -91,7 +91,7 @@ export function DashboardView() {
   }
 
   return (
-    <div style={{ padding: '16px 20px 24px', maxWidth: '960px', margin: '0 auto', display: 'flex', flexDirection: 'column', gap: '20px' }}>
+    <div style={{ padding: '64px 20px 24px', maxWidth: '960px', margin: '0 auto', display: 'flex', flexDirection: 'column', gap: '20px' }}>
       {/* Metric cards */}
       <div style={{ display: 'flex', gap: '12px', flexWrap: 'wrap' }}>
         <MetricCard

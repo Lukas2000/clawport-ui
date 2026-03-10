@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useState, useCallback } from 'react'
-import type { Project, Agent, Goal } from '@/lib/types'
+import type { Project, Agent, Goal, Product } from '@/lib/types'
 import { Skeleton } from '@/components/ui/skeleton'
 import { EmptyState } from '@/components/ui/EmptyState'
 import { AgentAvatar } from '@/components/AgentAvatar'
@@ -25,6 +25,7 @@ export default function ProjectsPage() {
   const [projects, setProjects] = useState<Project[]>([])
   const [agents, setAgents] = useState<Agent[]>([])
   const [goals, setGoals] = useState<Goal[]>([])
+  const [products, setProducts] = useState<Product[]>([])
   const [showCreate, setShowCreate] = useState(false)
   const [loading, setLoading] = useState(true)
   const [selectedProject, setSelectedProject] = useState<Project | null>(null)
@@ -34,6 +35,7 @@ export default function ProjectsPage() {
       fetch('/api/projects').then((r) => r.json()).then(setProjects).catch(() => {}),
       fetch('/api/agents').then((r) => r.json()).then((d: unknown) => { if (Array.isArray(d)) setAgents(d) }).catch(() => {}),
       fetch('/api/goals').then((r) => r.json()).then((d: unknown) => { if (Array.isArray(d)) setGoals(d) }).catch(() => {}),
+      fetch('/api/products').then((r) => r.json()).then((d: unknown) => { if (Array.isArray(d)) setProducts(d) }).catch(() => {}),
     ]).finally(() => setLoading(false))
   }, [])
 
@@ -45,6 +47,10 @@ export default function ProjectsPage() {
 
   function goalFor(id: string | null) {
     return goals.find((g) => g.id === id)
+  }
+
+  function productFor(id: string | null) {
+    return products.find((p) => p.id === id)
   }
 
   async function handleUpdate(projectId: string, data: Record<string, unknown>) {
@@ -89,6 +95,7 @@ export default function ProjectsPage() {
             <CreateProjectForm
               agents={agents}
               goals={goals}
+              products={products}
               onCreated={() => { setShowCreate(false); load() }}
               onCancel={() => setShowCreate(false)}
             />
@@ -115,6 +122,7 @@ export default function ProjectsPage() {
                   project={p}
                   agent={agentFor(p.leadAgentId)}
                   goal={goalFor(p.goalId)}
+                  product={productFor(p.productId)}
                   selected={selectedProject?.id === p.id}
                   onSelect={() => setSelectedProject(selectedProject?.id === p.id ? null : p)}
                   onUpdate={load}
@@ -130,6 +138,7 @@ export default function ProjectsPage() {
             project={selectedProject}
             agents={agents}
             goals={goals}
+            products={products}
             onClose={() => setSelectedProject(null)}
             onUpdate={(data) => handleUpdate(selectedProject.id, data)}
             onDelete={async () => {
@@ -148,6 +157,7 @@ function ProjectCard({
   project,
   agent,
   goal,
+  product,
   selected,
   onSelect,
   onUpdate,
@@ -155,6 +165,7 @@ function ProjectCard({
   project: Project
   agent?: Agent
   goal?: Goal
+  product?: Product
   selected: boolean
   onSelect: () => void
   onUpdate: () => void
@@ -184,13 +195,22 @@ function ProjectCard({
         transition: 'border-color 150ms',
       }}
     >
-      {/* Goal badge */}
-      {goal && (
-        <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
-          <ChevronRight size={10} style={{ color: 'var(--text-quaternary)' }} />
-          <span style={{ fontSize: '11px', color: 'var(--text-quaternary)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-            {goal.title}
-          </span>
+      {/* Product + Goal breadcrumb */}
+      {(product || goal) && (
+        <div style={{ display: 'flex', alignItems: 'center', gap: '4px', flexWrap: 'wrap' }}>
+          {product && (
+            <>
+              <span style={{ fontSize: '11px', color: 'var(--text-quaternary)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                {product.name}
+              </span>
+              {goal && <ChevronRight size={10} style={{ color: 'var(--text-quaternary)' }} />}
+            </>
+          )}
+          {goal && (
+            <span style={{ fontSize: '11px', color: 'var(--text-quaternary)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+              {goal.title}
+            </span>
+          )}
         </div>
       )}
 
@@ -267,6 +287,7 @@ function ProjectDetail({
   project,
   agents,
   goals,
+  products,
   onClose,
   onUpdate,
   onDelete,
@@ -274,6 +295,7 @@ function ProjectDetail({
   project: Project
   agents: Agent[]
   goals: Goal[]
+  products: Product[]
   onClose: () => void
   onUpdate: (data: Record<string, unknown>) => void
   onDelete: () => void
@@ -398,6 +420,20 @@ function ProjectDetail({
             </select>
           </DetailRow>
 
+          {/* Product */}
+          <DetailRow label="Product">
+            <select
+              value={project.productId ?? ''}
+              onChange={(e) => onUpdate({ productId: e.target.value || null })}
+              style={inlineSelectStyle}
+            >
+              <option value="">No product</option>
+              {products.map(p => (
+                <option key={p.id} value={p.id}>{p.name}</option>
+              ))}
+            </select>
+          </DetailRow>
+
           {/* Progress */}
           <DetailRow label="Progress">
             <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flex: 1 }}>
@@ -472,11 +508,13 @@ function DetailRow({ label, children }: { label: string; children: React.ReactNo
 function CreateProjectForm({
   agents,
   goals,
+  products,
   onCreated,
   onCancel,
 }: {
   agents: Agent[]
   goals: Goal[]
+  products: Product[]
   onCreated: () => void
   onCancel: () => void
 }) {
@@ -485,6 +523,7 @@ function CreateProjectForm({
   const [priority, setPriority] = useState('medium')
   const [leadAgentId, setLeadAgentId] = useState('')
   const [goalId, setGoalId] = useState('')
+  const [productId, setProductId] = useState('')
   const [saving, setSaving] = useState(false)
 
   async function submit(e: React.FormEvent) {
@@ -501,6 +540,7 @@ function CreateProjectForm({
           priority,
           leadAgentId: leadAgentId || null,
           goalId: goalId || null,
+          productId: productId || null,
         }),
       })
       onCreated()
@@ -530,6 +570,13 @@ function CreateProjectForm({
         style={{ ...inputStyle, minHeight: '60px', resize: 'vertical' }}
       />
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+          <label style={{ fontSize: '11px', fontWeight: 500, color: 'var(--text-tertiary)' }}>Product</label>
+          <select value={productId} onChange={(e) => setProductId(e.target.value)} style={inputStyle}>
+            <option value="">No product</option>
+            {products.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}
+          </select>
+        </div>
         <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
           <label style={{ fontSize: '11px', fontWeight: 500, color: 'var(--text-tertiary)' }}>Goal</label>
           <select value={goalId} onChange={(e) => setGoalId(e.target.value)} style={inputStyle}>

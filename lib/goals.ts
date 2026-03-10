@@ -9,6 +9,7 @@ interface GoalRow {
   type: string
   parent_goal_id: string | null
   owner_agent_id: string | null
+  product_id: string | null
   status: string
   target_value: number | null
   current_value: number
@@ -26,6 +27,7 @@ function rowToGoal(row: GoalRow): Goal {
     type: row.type as GoalType,
     parentGoalId: row.parent_goal_id,
     ownerAgentId: row.owner_agent_id,
+    productId: row.product_id,
     status: row.status as GoalStatus,
     targetValue: row.target_value,
     currentValue: row.current_value,
@@ -40,6 +42,7 @@ export interface GoalFilters {
   status?: GoalStatus
   ownerAgentId?: string
   parentGoalId?: string | null
+  productId?: string | null
   type?: GoalType
 }
 
@@ -61,6 +64,14 @@ export function getGoals(filters?: GoalFilters, db = getDb()): Goal[] {
     } else {
       conditions.push('parent_goal_id = ?')
       params.push(filters.parentGoalId)
+    }
+  }
+  if (filters?.productId !== undefined) {
+    if (filters.productId === null) {
+      conditions.push('product_id IS NULL')
+    } else {
+      conditions.push('product_id = ?')
+      params.push(filters.productId)
     }
   }
   if (filters?.type) {
@@ -87,6 +98,7 @@ export function createGoal(
     type?: GoalType
     parentGoalId?: string | null
     ownerAgentId?: string | null
+    productId?: string | null
     targetValue?: number | null
     targetDate?: string | null
   },
@@ -95,8 +107,8 @@ export function createGoal(
   const id = generateId()
   const now = new Date().toISOString()
   db.prepare(
-    `INSERT INTO goals (id, title, description, type, parent_goal_id, owner_agent_id, target_value, target_date, created_at, updated_at)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+    `INSERT INTO goals (id, title, description, type, parent_goal_id, owner_agent_id, product_id, target_value, target_date, created_at, updated_at)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
   ).run(
     id,
     data.title,
@@ -104,6 +116,7 @@ export function createGoal(
     data.type ?? 'goal',
     data.parentGoalId ?? null,
     data.ownerAgentId ?? null,
+    data.productId ?? null,
     data.targetValue ?? null,
     data.targetDate ?? null,
     now,
@@ -120,6 +133,7 @@ export function updateGoal(
     type: GoalType
     parentGoalId: string | null
     ownerAgentId: string | null
+    productId: string | null
     status: GoalStatus
     targetValue: number | null
     currentValue: number
@@ -136,6 +150,7 @@ export function updateGoal(
   if (data.type !== undefined) { fields.push('type = ?'); values.push(data.type) }
   if (data.parentGoalId !== undefined) { fields.push('parent_goal_id = ?'); values.push(data.parentGoalId) }
   if (data.ownerAgentId !== undefined) { fields.push('owner_agent_id = ?'); values.push(data.ownerAgentId) }
+  if (data.productId !== undefined) { fields.push('product_id = ?'); values.push(data.productId) }
   if (data.status !== undefined) { fields.push('status = ?'); values.push(data.status) }
   if (data.targetValue !== undefined) { fields.push('target_value = ?'); values.push(data.targetValue) }
   if (data.currentValue !== undefined) { fields.push('current_value = ?'); values.push(data.currentValue) }

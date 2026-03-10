@@ -3,12 +3,10 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import type { Agent, CronJob, CronRun, HeartbeatConfig, HeartbeatRun } from "@/lib/types";
-import type { Pipeline } from "@/lib/cron-pipelines";
 import { formatDuration } from "@/lib/cron-utils";
 import { Skeleton } from "@/components/ui/skeleton";
-import { RefreshCw, BarChart3, Calendar, GitBranch, Copy, Check, Heart } from "lucide-react";
+import { RefreshCw, BarChart3, Calendar, Copy, Check, Heart, Clock, Play, Settings, ToggleLeft, ToggleRight } from "lucide-react";
 import { WeeklySchedule } from "@/components/crons/WeeklySchedule";
-import { PipelineGraph } from "@/components/crons/PipelineGraph";
 
 /* ─── Time helpers ──────────────────────────────────────────────── */
 
@@ -49,10 +47,16 @@ function nextRunLabel(dateStr: string | null): string {
   return `in ${days}d`;
 }
 
+function intervalLabel(mins: number): string {
+  if (mins < 60) return `${mins}m`;
+  if (mins < 1440) return `${mins / 60}h`;
+  return `${mins / 1440}d`;
+}
+
 /* ─── Types ─────────────────────────────────────────────────────── */
 
 type Filter = "all" | "ok" | "error" | "idle";
-type Tab = "overview" | "schedule" | "pipelines";
+type Tab = "heartbeat" | "schedule";
 
 const STATUS_DOT: Record<string, string> = {
   ok: "var(--system-green)",
@@ -68,15 +72,13 @@ const PILLS: { key: Filter; label: string; dotColor: string }[] = [
 ];
 
 const TAB_ICONS: Record<Tab, React.ComponentType<{ size: number; className?: string }>> = {
-  overview: BarChart3,
+  heartbeat: Heart,
   schedule: Calendar,
-  pipelines: GitBranch,
 };
 
 const TABS: { key: Tab; label: string }[] = [
-  { key: "overview", label: "Overview" },
+  { key: "heartbeat", label: "Agents" },
   { key: "schedule", label: "Schedule" },
-  { key: "pipelines", label: "Pipelines" },
 ];
 
 /* ─── Delivery helpers ─────────────────────────────────────────── */
@@ -423,7 +425,7 @@ function RecentRuns({ jobId }: { jobId: string }) {
   );
 }
 
-/* ─── Heartbeat Agents Section ─────────────────────────────────── */
+/* ─── Heartbeat Agents Section (kept for compatibility) ────────── */
 
 const HB_STATUS_COLORS: Record<string, string> = {
   queued: "var(--text-tertiary)",
@@ -637,9 +639,8 @@ function HeartbeatAgentsSection({ agents }: { agents: Agent[] }) {
 export default function CronsPage() {
   const [crons, setCrons] = useState<CronJob[]>([]);
   const [agents, setAgents] = useState<Agent[]>([]);
-  const [pipelines, setPipelines] = useState<Pipeline[]>([]);
   const [filter, setFilter] = useState<Filter>("all");
-  const [tab, setTab] = useState<Tab>("overview");
+  const [tab, setTab] = useState<Tab>("heartbeat");
   const [expanded, setExpanded] = useState<string | null>(null);
   const [lastRefresh, setLastRefresh] = useState<Date>(new Date());
   const [loading, setLoading] = useState(true);
@@ -647,6 +648,18 @@ export default function CronsPage() {
   const [error, setError] = useState<string | null>(null);
   const [updatedAgo, setUpdatedAgo] = useState("just now");
   const [copiedId, setCopiedId] = useState<string | null>(null);
+
+  // Heartbeat state
+  const [hbConfigsList, setHbConfigsList] = useState<HeartbeatConfig[]>([]);
+  const [hbRuns, setHbRuns] = useState<Map<string, HeartbeatRun[]>>(new Map());
+  const [editingAgent, setEditingAgent] = useState<string | null>(null);
+  const [editForm, setEditForm] = useState<{ enabled: boolean; intervalMinutes: number; maxConcurrentRuns: number }>({ enabled: true, intervalMinutes: 30, maxConcurrentRuns: 1 });
+  const [saving, setSaving] = useState<string | null>(null);
+  const [triggering, setTriggering] = useState<string | null>(null);
+  const [triggerFeedback, setTriggerFeedback] = useState<string | null>(null);
+
+  // Derived heartbeat
+  const hbConfigs = new Map(hbConfigsList.map(c => [c.agentId, c]));
 
   const pillsRef = useRef<HTMLDivElement>(null);
 
@@ -673,10 +686,8 @@ export default function CronsPage() {
         // Backward compat: if response is a plain array, treat as crons-only
         if (Array.isArray(cronData)) {
           setCrons(cronData);
-          setPipelines([]);
         } else {
           setCrons(cronData.crons);
-          setPipelines(cronData.pipelines || []);
         }
         setAgents(a);
         setLastRefresh(new Date());
@@ -690,11 +701,30 @@ export default function CronsPage() {
       });
   }, []);
 
+  const refreshHeartbeat = useCallback(async () => {
+    try {
+      const res = await fetch("/api/heartbeat");
+      if (!res.ok) return;
+      const configs: HeartbeatConfig[] = await res.json();
+      setHbConfigsList(configs);
+      // fetch recent runs for configured agents
+      const runsMap = new Map<string, HeartbeatRun[]>();
+      await Promise.all(configs.filter(c => c.enabled).map(async (cfg) => {
+        try {
+          const r = await fetch(`/api/heartbeat/${cfg.agentId}/runs?limit=5`);
+          if (r.ok) runsMap.set(cfg.agentId, await r.json());
+        } catch {}
+      }));
+      setHbRuns(runsMap);
+    } catch {}
+  }, []);
+
   useEffect(() => {
     refresh();
+    refreshHeartbeat();
     const interval = setInterval(refresh, 60000);
     return () => clearInterval(interval);
-  }, [refresh]);
+  }, [refresh, refreshHeartbeat]);
 
   useEffect(() => {
     const tick = () => setUpdatedAgo(timeAgo(lastRefresh.toISOString()));
@@ -702,6 +732,40 @@ export default function CronsPage() {
     const interval = setInterval(tick, 30000);
     return () => clearInterval(interval);
   }, [lastRefresh]);
+
+  async function saveHeartbeat(agentId: string) {
+    setSaving(agentId);
+    try {
+      const res = await fetch(`/api/heartbeat/${agentId}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(editForm),
+      });
+      if (res.ok) {
+        const updated: HeartbeatConfig = await res.json();
+        setHbConfigsList(prev => {
+          const exists = prev.find(c => c.agentId === agentId);
+          if (exists) return prev.map(c => c.agentId === agentId ? updated : c);
+          return [...prev, updated];
+        });
+        setEditingAgent(null);
+      }
+    } finally {
+      setSaving(null);
+    }
+  }
+
+  async function triggerHeartbeat(agentId: string) {
+    setTriggering(agentId);
+    try {
+      await fetch(`/api/heartbeat/${agentId}`, { method: "POST" });
+      setTriggerFeedback(agentId);
+      setTimeout(() => setTriggerFeedback(null), 2000);
+      await refreshHeartbeat();
+    } finally {
+      setTriggering(null);
+    }
+  }
 
   /* Derived data */
   const agentMap = new Map(agents.map((a) => [a.id, a]));
@@ -716,6 +780,10 @@ export default function CronsPage() {
     idle: crons.filter((c) => c.status === "idle").length,
   };
   const errorCrons = crons.filter((c) => c.status === "error");
+
+  // Heartbeat derived counts
+  const hbActiveCount = hbConfigsList.filter(c => c.enabled).length;
+  const hbErrorCount = hbConfigsList.filter(c => (c.consecutiveErrors ?? 0) > 0).length;
 
   function handlePillKeyDown(e: React.KeyboardEvent) {
     const pills = pillsRef.current;
@@ -754,20 +822,19 @@ export default function CronsPage() {
             </h1>
             {!loading && (
               <p style={{ fontSize: "var(--text-footnote)", color: "var(--text-secondary)", marginTop: "var(--space-1)" }}>
-                {counts.all} job{counts.all !== 1 ? "s" : ""}
+                {`${agents.length} agent${agents.length !== 1 ? "s" : ""} · ${hbActiveCount} active`}
                 {counts.error > 0 && (
-                  <span style={{ color: "var(--system-red)" }}>{" \u00b7 "}{counts.error} error{counts.error !== 1 ? "s" : ""}</span>
+                  <span style={{ color: "var(--system-red)" }}>{" \u00b7 "}{counts.error} cron error{counts.error !== 1 ? "s" : ""}</span>
                 )}
-                {" \u00b7 "}{counts.ok} ok
               </p>
             )}
           </div>
           <div className="flex items-center" style={{ gap: "var(--space-3)" }}>
             <span style={{ fontSize: "var(--text-caption1)", color: "var(--text-tertiary)" }}>Updated {updatedAgo}</span>
             <button
-              onClick={refresh}
+              onClick={() => { refresh(); refreshHeartbeat(); }}
               className="focus-ring"
-              aria-label="Refresh cron data"
+              aria-label="Refresh data"
               style={{ width: 32, height: 32, display: "flex", alignItems: "center", justifyContent: "center", borderRadius: "var(--radius-sm)", border: "none", background: "transparent", color: "var(--text-tertiary)", cursor: "pointer", transition: "color 150ms var(--ease-smooth)" }}
             >
               <RefreshCw size={16} className={refreshing ? "animate-spin" : ""} />
@@ -835,40 +902,432 @@ export default function CronsPage() {
           </>
         ) : (
           <>
-            {/* ─── Crons load error banner ──────────────────── */}
-            {error && (
-              <div style={{
-                display: "flex",
-                alignItems: "flex-start",
-                gap: "var(--space-3)",
-                background: "rgba(255,69,58,0.06)",
-                borderLeft: "3px solid var(--system-red)",
-                borderRadius: "var(--radius-sm)",
-                padding: "var(--space-3) var(--space-4)",
-                marginBottom: "var(--space-4)",
-              }}>
-                <div style={{ flex: 1, minWidth: 0 }}>
-                  <div style={{ fontSize: "var(--text-footnote)", fontWeight: "var(--weight-semibold)", color: "var(--system-red)", marginBottom: 2 }}>
-                    Failed to load scheduled jobs
+            {/* ─── HEARTBEAT TAB ────────────────────────────── */}
+            {tab === "heartbeat" && (
+              <div style={{ display: "flex", flexDirection: "column", gap: "var(--space-3)" }}>
+                {/* Summary row */}
+                <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: "var(--space-3)", marginBottom: "var(--space-2)" }} className="summary-cards-grid">
+                  {/* Active agents card */}
+                  <div style={{ background: "var(--material-regular)", border: "1px solid var(--separator)", borderRadius: "var(--radius-md)", padding: "var(--space-4)" }}>
+                    <div style={{ fontSize: "var(--text-caption1)", color: "var(--text-tertiary)", fontWeight: "var(--weight-medium)", marginBottom: "var(--space-1)" }}>
+                      Active Agents
+                    </div>
+                    <div style={{ fontSize: "var(--text-footnote)", color: "var(--text-primary)", fontWeight: "var(--weight-semibold)" }}>
+                      {hbActiveCount} of {agents.length}
+                    </div>
                   </div>
-                  <div style={{ fontSize: "var(--text-caption1)", color: "var(--text-tertiary)", wordBreak: "break-word" }}>
-                    {error}
+
+                  {/* Errors card */}
+                  <div style={{ background: "var(--material-regular)", border: "1px solid var(--separator)", borderRadius: "var(--radius-md)", padding: "var(--space-4)" }}>
+                    <div style={{ fontSize: "var(--text-caption1)", color: "var(--text-tertiary)", fontWeight: "var(--weight-medium)", marginBottom: "var(--space-1)" }}>
+                      Errors
+                    </div>
+                    {hbErrorCount > 0 ? (
+                      <div style={{ fontSize: "var(--text-footnote)", color: "var(--system-red)", fontWeight: "var(--weight-semibold)" }}>
+                        {hbErrorCount} agent{hbErrorCount !== 1 ? "s" : ""} failing
+                      </div>
+                    ) : (
+                      <div className="flex items-center" style={{ gap: "var(--space-1)" }}>
+                        <svg width="12" height="12" viewBox="0 0 16 16" fill="none">
+                          <circle cx="8" cy="8" r="7" stroke="var(--system-green)" strokeWidth="1.5" />
+                          <polyline points="5 8 7 10 11 6" stroke="var(--system-green)" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" fill="none" />
+                        </svg>
+                        <span style={{ fontSize: "var(--text-footnote)", color: "var(--system-green)", fontWeight: "var(--weight-semibold)" }}>
+                          All clear
+                        </span>
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Next beat card */}
+                  <div style={{ background: "var(--material-regular)", border: "1px solid var(--separator)", borderRadius: "var(--radius-md)", padding: "var(--space-4)" }}>
+                    <div style={{ fontSize: "var(--text-caption1)", color: "var(--text-tertiary)", fontWeight: "var(--weight-medium)", marginBottom: "var(--space-1)" }}>
+                      Configured
+                    </div>
+                    <div style={{ fontSize: "var(--text-footnote)", color: "var(--text-primary)", fontWeight: "var(--weight-semibold)" }}>
+                      {hbConfigsList.length} heartbeat{hbConfigsList.length !== 1 ? "s" : ""}
+                    </div>
                   </div>
                 </div>
-                <button
-                  onClick={refresh}
-                  className="btn-ghost focus-ring flex-shrink-0"
-                  style={{ padding: "4px 10px", borderRadius: "var(--radius-sm)", fontSize: "var(--text-caption1)", fontWeight: "var(--weight-medium)", display: "inline-flex", alignItems: "center", gap: 4 }}
-                >
-                  <RefreshCw size={12} />
-                  Retry
-                </button>
-              </div>
-            )}
 
-            {/* ─── OVERVIEW TAB ─────────────────────────────── */}
-            {tab === "overview" && (
-              <>
+                {/* Agent list */}
+                {agents.length === 0 ? (
+                  <div className="flex flex-col items-center justify-center" style={{ height: 200, color: "var(--text-secondary)", gap: "var(--space-2)" }}>
+                    <Heart size={32} style={{ color: "var(--text-tertiary)", marginBottom: "var(--space-2)" }} />
+                    <span style={{ fontSize: "var(--text-subheadline)", fontWeight: "var(--weight-medium)" }}>
+                      No agents found
+                    </span>
+                    <span style={{ fontSize: "var(--text-footnote)", color: "var(--text-tertiary)", textAlign: "center", maxWidth: 360, lineHeight: "var(--leading-relaxed)" }}>
+                      Agents will appear here once they are registered in your workspace.
+                    </span>
+                  </div>
+                ) : (
+                  <div style={{ borderRadius: "var(--radius-md)", overflow: "hidden", background: "var(--material-regular)", backdropFilter: "blur(20px)", WebkitBackdropFilter: "blur(20px)" }}>
+                    {agents.map((agent, idx) => {
+                      const cfg = hbConfigs.get(agent.id);
+                      const isExpanded = editingAgent === agent.id;
+                      const isEnabled = cfg?.enabled ?? false;
+                      const hasErrors = (cfg?.consecutiveErrors ?? 0) > 0;
+                      const runs = hbRuns.get(agent.id) ?? [];
+
+                      return (
+                        <div key={agent.id}>
+                          {idx > 0 && (
+                            <div style={{ height: 1, background: "var(--separator)", marginLeft: "var(--space-4)", marginRight: "var(--space-4)" }} />
+                          )}
+                          <div
+                            style={{
+                              padding: "var(--space-3) var(--space-4)",
+                              background: hasErrors ? "rgba(255,69,58,0.04)" : undefined,
+                              borderLeft: `3px solid ${hasErrors ? "var(--system-red)" : isEnabled ? "var(--system-green)" : "transparent"}`,
+                            }}
+                          >
+                            {/* Main row */}
+                            <div className="flex items-center" style={{ gap: "var(--space-3)", minHeight: 36 }}>
+                              {/* Status dot */}
+                              <span
+                                style={{
+                                  width: 8,
+                                  height: 8,
+                                  borderRadius: "50%",
+                                  flexShrink: 0,
+                                  background: hasErrors
+                                    ? "var(--system-red)"
+                                    : isEnabled
+                                      ? "var(--system-green)"
+                                      : "var(--text-tertiary)",
+                                }}
+                              />
+
+                              {/* Agent name + emoji */}
+                              <div className="min-w-0 flex-1">
+                                <div className="flex items-center" style={{ gap: "var(--space-2)" }}>
+                                  <span style={{ fontSize: "var(--text-body)" }}>{(agent as Agent & { emoji?: string }).emoji ?? "🤖"}</span>
+                                  <span style={{ fontSize: "var(--text-footnote)", fontWeight: "var(--weight-semibold)", color: "var(--text-primary)" }}>
+                                    {agent.name}
+                                  </span>
+                                  {cfg ? (
+                                    isEnabled ? (
+                                      <span style={{
+                                        fontSize: "var(--text-caption2)",
+                                        fontFamily: "var(--font-mono)",
+                                        color: "var(--system-green)",
+                                        background: "rgba(52,199,89,0.1)",
+                                        padding: "1px 6px",
+                                        borderRadius: 10,
+                                      }}>
+                                        every {intervalLabel(cfg.intervalMinutes)}
+                                      </span>
+                                    ) : (
+                                      <span style={{
+                                        fontSize: "var(--text-caption2)",
+                                        color: "var(--text-tertiary)",
+                                        background: "var(--fill-secondary)",
+                                        padding: "1px 6px",
+                                        borderRadius: 10,
+                                      }}>
+                                        paused
+                                      </span>
+                                    )
+                                  ) : (
+                                    <span style={{
+                                      fontSize: "var(--text-caption2)",
+                                      color: "var(--text-quaternary)",
+                                      background: "var(--fill-tertiary)",
+                                      padding: "1px 6px",
+                                      borderRadius: 10,
+                                    }}>
+                                      not configured
+                                    </span>
+                                  )}
+                                </div>
+                                {hasErrors && cfg?.lastError && (
+                                  <div style={{ fontSize: "var(--text-caption2)", color: "var(--system-red)", marginTop: 2 }}>
+                                    {cfg.consecutiveErrors}x errors: {cfg.lastError.length > 80 ? cfg.lastError.slice(0, 77) + "..." : cfg.lastError}
+                                  </div>
+                                )}
+                              </div>
+
+                              {/* Right side: last beat + actions */}
+                              <div className="flex items-center flex-shrink-0" style={{ gap: "var(--space-2)" }}>
+                                {cfg && (
+                                  <span style={{ fontSize: "var(--text-caption2)", color: "var(--text-tertiary)" }}>
+                                    {cfg.lastBeatAt ? timeAgo(cfg.lastBeatAt) : "never"}
+                                  </span>
+                                )}
+
+                                {/* Trigger button */}
+                                {cfg && isEnabled && (
+                                  <button
+                                    onClick={() => triggerHeartbeat(agent.id)}
+                                    disabled={triggering === agent.id}
+                                    className="btn-ghost focus-ring"
+                                    aria-label={`Trigger heartbeat for ${agent.name}`}
+                                    style={{
+                                      display: "inline-flex",
+                                      alignItems: "center",
+                                      gap: 4,
+                                      padding: "4px 10px",
+                                      borderRadius: "var(--radius-sm)",
+                                      fontSize: "var(--text-caption1)",
+                                      fontWeight: "var(--weight-medium)",
+                                      color: triggerFeedback === agent.id ? "var(--system-green)" : "var(--system-blue)",
+                                      opacity: triggering === agent.id ? 0.5 : 1,
+                                    }}
+                                  >
+                                    {triggerFeedback === agent.id ? (
+                                      <Check size={12} />
+                                    ) : (
+                                      <Play size={12} />
+                                    )}
+                                    {triggerFeedback === agent.id ? "Triggered" : "Trigger"}
+                                  </button>
+                                )}
+
+                                {/* Configure / Enable button */}
+                                {!cfg ? (
+                                  <button
+                                    onClick={() => {
+                                      setEditForm({ enabled: true, intervalMinutes: 30, maxConcurrentRuns: 1 });
+                                      setEditingAgent(isExpanded ? null : agent.id);
+                                    }}
+                                    className="btn-ghost focus-ring"
+                                    style={{
+                                      display: "inline-flex",
+                                      alignItems: "center",
+                                      gap: 4,
+                                      padding: "4px 10px",
+                                      borderRadius: "var(--radius-sm)",
+                                      fontSize: "var(--text-caption1)",
+                                      fontWeight: "var(--weight-medium)",
+                                      color: "var(--system-blue)",
+                                    }}
+                                  >
+                                    <Settings size={12} />
+                                    Enable
+                                  </button>
+                                ) : (
+                                  <button
+                                    onClick={() => {
+                                      if (!isExpanded) {
+                                        setEditForm({
+                                          enabled: cfg.enabled,
+                                          intervalMinutes: cfg.intervalMinutes,
+                                          maxConcurrentRuns: cfg.maxConcurrentRuns ?? 1,
+                                        });
+                                      }
+                                      setEditingAgent(isExpanded ? null : agent.id);
+                                    }}
+                                    className="btn-ghost focus-ring"
+                                    aria-label={`${isExpanded ? "Close" : "Edit"} heartbeat settings for ${agent.name}`}
+                                    style={{
+                                      display: "inline-flex",
+                                      alignItems: "center",
+                                      gap: 4,
+                                      padding: "4px 10px",
+                                      borderRadius: "var(--radius-sm)",
+                                      fontSize: "var(--text-caption1)",
+                                      fontWeight: "var(--weight-medium)",
+                                      color: isExpanded ? "var(--accent)" : "var(--text-secondary)",
+                                    }}
+                                  >
+                                    <Settings size={12} />
+                                    {isExpanded ? "Close" : "Edit"}
+                                  </button>
+                                )}
+                              </div>
+                            </div>
+
+                            {/* Recent run dots */}
+                            {runs.length > 0 && (
+                              <div className="flex items-center" style={{ gap: "var(--space-2)", marginTop: "var(--space-2)", marginLeft: 20 }}>
+                                {runs.slice(0, 5).map(run => (
+                                  <span
+                                    key={run.id}
+                                    title={`${run.trigger} — ${run.status}`}
+                                    style={{
+                                      width: 8,
+                                      height: 8,
+                                      borderRadius: 2,
+                                      background: HB_STATUS_COLORS[run.status] ?? "var(--text-tertiary)",
+                                    }}
+                                  />
+                                ))}
+                                <span style={{ fontSize: "var(--text-caption2)", color: "var(--text-quaternary)", marginLeft: 2 }}>
+                                  recent runs
+                                </span>
+                              </div>
+                            )}
+
+                            {/* Expanded edit form */}
+                            {isExpanded && (
+                              <div
+                                className="animate-slide-down"
+                                style={{
+                                  marginTop: "var(--space-3)",
+                                  marginLeft: 20,
+                                  padding: "var(--space-3)",
+                                  background: "var(--fill-secondary)",
+                                  borderRadius: "var(--radius-sm)",
+                                  display: "flex",
+                                  flexDirection: "column",
+                                  gap: "var(--space-3)",
+                                }}
+                              >
+                                {/* Enabled toggle */}
+                                <div className="flex items-center" style={{ gap: "var(--space-3)" }}>
+                                  <span style={{ fontSize: "var(--text-caption1)", color: "var(--text-secondary)", minWidth: 100 }}>
+                                    Enabled
+                                  </span>
+                                  <button
+                                    onClick={() => setEditForm(f => ({ ...f, enabled: !f.enabled }))}
+                                    className="focus-ring"
+                                    aria-label={editForm.enabled ? "Disable heartbeat" : "Enable heartbeat"}
+                                    style={{ background: "transparent", border: "none", cursor: "pointer", padding: 0, color: editForm.enabled ? "var(--system-green)" : "var(--text-tertiary)", display: "flex", alignItems: "center" }}
+                                  >
+                                    {editForm.enabled ? <ToggleRight size={22} /> : <ToggleLeft size={22} />}
+                                  </button>
+                                  <span style={{ fontSize: "var(--text-caption2)", color: editForm.enabled ? "var(--system-green)" : "var(--text-tertiary)" }}>
+                                    {editForm.enabled ? "on" : "off"}
+                                  </span>
+                                </div>
+
+                                {/* Interval */}
+                                <div className="flex items-center" style={{ gap: "var(--space-3)" }}>
+                                  <span style={{ fontSize: "var(--text-caption1)", color: "var(--text-secondary)", minWidth: 100 }}>
+                                    Interval (min)
+                                  </span>
+                                  <input
+                                    type="number"
+                                    min={1}
+                                    value={editForm.intervalMinutes}
+                                    onChange={e => setEditForm(f => ({ ...f, intervalMinutes: Math.max(1, parseInt(e.target.value) || 1) }))}
+                                    style={{
+                                      width: 72,
+                                      padding: "4px 8px",
+                                      fontSize: "var(--text-caption1)",
+                                      fontFamily: "var(--font-mono)",
+                                      background: "var(--fill-primary)",
+                                      border: "1px solid var(--separator)",
+                                      borderRadius: "var(--radius-sm)",
+                                      color: "var(--text-primary)",
+                                    }}
+                                  />
+                                  <span style={{ fontSize: "var(--text-caption2)", color: "var(--text-tertiary)" }}>
+                                    = every {intervalLabel(editForm.intervalMinutes)}
+                                  </span>
+                                </div>
+
+                                {/* Max concurrent */}
+                                <div className="flex items-center" style={{ gap: "var(--space-3)" }}>
+                                  <span style={{ fontSize: "var(--text-caption1)", color: "var(--text-secondary)", minWidth: 100 }}>
+                                    Max concurrent
+                                  </span>
+                                  <input
+                                    type="number"
+                                    min={1}
+                                    max={10}
+                                    value={editForm.maxConcurrentRuns}
+                                    onChange={e => setEditForm(f => ({ ...f, maxConcurrentRuns: Math.max(1, parseInt(e.target.value) || 1) }))}
+                                    style={{
+                                      width: 72,
+                                      padding: "4px 8px",
+                                      fontSize: "var(--text-caption1)",
+                                      fontFamily: "var(--font-mono)",
+                                      background: "var(--fill-primary)",
+                                      border: "1px solid var(--separator)",
+                                      borderRadius: "var(--radius-sm)",
+                                      color: "var(--text-primary)",
+                                    }}
+                                  />
+                                </div>
+
+                                {/* Save button */}
+                                <div className="flex items-center" style={{ gap: "var(--space-2)" }}>
+                                  <button
+                                    onClick={() => saveHeartbeat(agent.id)}
+                                    disabled={saving === agent.id}
+                                    className="focus-ring"
+                                    style={{
+                                      padding: "6px 16px",
+                                      borderRadius: "var(--radius-sm)",
+                                      fontSize: "var(--text-caption1)",
+                                      fontWeight: "var(--weight-semibold)",
+                                      border: "none",
+                                      cursor: saving === agent.id ? "default" : "pointer",
+                                      background: "var(--accent)",
+                                      color: "var(--accent-foreground, white)",
+                                      opacity: saving === agent.id ? 0.6 : 1,
+                                      transition: "opacity 150ms",
+                                    }}
+                                  >
+                                    {saving === agent.id ? "Saving..." : "Save"}
+                                  </button>
+                                  <button
+                                    onClick={() => setEditingAgent(null)}
+                                    className="btn-ghost focus-ring"
+                                    style={{
+                                      padding: "6px 12px",
+                                      borderRadius: "var(--radius-sm)",
+                                      fontSize: "var(--text-caption1)",
+                                      fontWeight: "var(--weight-medium)",
+                                    }}
+                                  >
+                                    Cancel
+                                  </button>
+                                </div>
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+
+              {/* ─── OpenClaw Cron Jobs (below heartbeat agents) ── */}
+              <div style={{ marginTop: "var(--space-6)" }}>
+                <div style={{ display: "flex", alignItems: "center", gap: "var(--space-2)", marginBottom: "var(--space-3)" }}>
+                  <Clock size={14} style={{ color: "var(--text-tertiary)" }} />
+                  <span style={{ fontSize: "var(--text-footnote)", fontWeight: "var(--weight-semibold)", color: "var(--text-secondary)" }}>
+                    OpenClaw Cron Jobs
+                  </span>
+                  <span style={{ fontSize: "var(--text-caption1)", color: "var(--text-tertiary)", marginLeft: "var(--space-1)" }}>
+                    ({counts.all} job{counts.all !== 1 ? "s" : ""})
+                  </span>
+                </div>
+
+                {/* Crons load error banner */}
+                {error && (
+                  <div style={{
+                    display: "flex",
+                    alignItems: "flex-start",
+                    gap: "var(--space-3)",
+                    background: "rgba(255,69,58,0.06)",
+                    borderLeft: "3px solid var(--system-red)",
+                    borderRadius: "var(--radius-sm)",
+                    padding: "var(--space-3) var(--space-4)",
+                    marginBottom: "var(--space-4)",
+                  }}>
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <div style={{ fontSize: "var(--text-footnote)", fontWeight: "var(--weight-semibold)", color: "var(--system-red)", marginBottom: 2 }}>
+                        Failed to load scheduled jobs
+                      </div>
+                      <div style={{ fontSize: "var(--text-caption1)", color: "var(--text-tertiary)", wordBreak: "break-word" }}>
+                        {error}
+                      </div>
+                    </div>
+                    <button
+                      onClick={refresh}
+                      className="btn-ghost focus-ring flex-shrink-0"
+                      style={{ padding: "4px 10px", borderRadius: "var(--radius-sm)", fontSize: "var(--text-caption1)", fontWeight: "var(--weight-medium)", display: "inline-flex", alignItems: "center", gap: 4 }}
+                    >
+                      <RefreshCw size={12} />
+                      Retry
+                    </button>
+                  </div>
+                )}
+
                 {/* Summary cards */}
                 <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: "var(--space-3)", marginBottom: "var(--space-4)" }} className="summary-cards-grid">
                   <HealthCard ok={counts.ok} total={counts.all} />
@@ -1096,16 +1555,13 @@ export default function CronsPage() {
                     })}
                   </div>
                 )}
-                {/* Heartbeat agents */}
-                <HeartbeatAgentsSection agents={agents} />
-              </>
+              </div>
+            </div>
             )}
 
             {/* ─── SCHEDULE TAB ──────────────────────────────── */}
             {tab === "schedule" && <WeeklySchedule crons={crons} />}
 
-            {/* ─── PIPELINES TAB ─────────────────────────────── */}
-            {tab === "pipelines" && <PipelineGraph crons={crons} agents={agents} pipelines={pipelines} />}
           </>
         )}
       </div>

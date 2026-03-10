@@ -38,6 +38,7 @@ export async function POST(request: Request) {
       type: body.type,
       parentGoalId: body.parentGoalId,
       ownerAgentId: body.ownerAgentId,
+      productId: body.productId,
       targetValue: body.targetValue,
       targetDate: body.targetDate,
     })

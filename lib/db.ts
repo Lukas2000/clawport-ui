@@ -245,7 +245,35 @@ function migrate(db: Database.Database) {
       created_at TEXT NOT NULL DEFAULT (datetime('now'))
     );
 
-    -- Goals: Mission -> Goals/OKRs -> Projects -> Tasks
+    -- Products: Mission -> Products -> Goals -> Projects -> Tasks
+    CREATE TABLE IF NOT EXISTS products (
+      id TEXT PRIMARY KEY,
+      name TEXT NOT NULL,
+      description TEXT NOT NULL DEFAULT '',
+      status TEXT NOT NULL DEFAULT 'active'
+        CHECK(status IN ('planning','active','paused','completed','deprecated')),
+      purpose TEXT NOT NULL DEFAULT '',
+      business_goals TEXT NOT NULL DEFAULT '',
+      target_audience TEXT NOT NULL DEFAULT '',
+      value_proposition TEXT NOT NULL DEFAULT '',
+      monetization TEXT NOT NULL DEFAULT '',
+      go_to_market TEXT NOT NULL DEFAULT '',
+      marketing_methods TEXT NOT NULL DEFAULT '',
+      key_differentiators TEXT NOT NULL DEFAULT '',
+      tech_stack TEXT NOT NULL DEFAULT '',
+      current_version TEXT,
+      launch_date TEXT,
+      github_url TEXT,
+      api_docs_url TEXT,
+      documentation TEXT NOT NULL DEFAULT '',
+      owner_agent_id TEXT,
+      progress INTEGER NOT NULL DEFAULT 0
+        CHECK(progress >= 0 AND progress <= 100),
+      created_at TEXT NOT NULL DEFAULT (datetime('now')),
+      updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+    );
+
+    -- Goals: Mission -> Products -> Goals/OKRs -> Projects -> Tasks
     CREATE TABLE IF NOT EXISTS goals (
       id TEXT PRIMARY KEY,
       title TEXT NOT NULL,
@@ -279,6 +307,8 @@ function migrate(db: Database.Database) {
   addColumn('tasks', 'cancelled_at', 'TEXT')
   addColumn('tasks', 'hidden_at', 'TEXT')
   addColumn('projects', 'goal_id', 'TEXT REFERENCES goals(id) ON DELETE SET NULL')
+  addColumn('projects', 'product_id', 'TEXT REFERENCES products(id) ON DELETE SET NULL')
+  addColumn('goals', 'product_id', 'TEXT REFERENCES products(id) ON DELETE SET NULL')
   addColumn('approvals', 'approval_type', "TEXT DEFAULT 'manual'")
   addColumn('approvals', 'context', "TEXT DEFAULT '{}'")
   addColumn('approvals', 'decided_by', 'TEXT')

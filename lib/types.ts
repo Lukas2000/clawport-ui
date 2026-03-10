@@ -251,6 +251,7 @@ export interface Project {
   priority: 'low' | 'medium' | 'high'
   leadAgentId: string | null
   goalId: string | null
+  productId: string | null
   progress: number
   createdAt: string
   updatedAt: string
@@ -269,6 +270,7 @@ export interface Goal {
   type: GoalType
   parentGoalId: string | null
   ownerAgentId: string | null
+  productId: string | null
   status: GoalStatus
   targetValue: number | null
   currentValue: number
@@ -556,4 +558,36 @@ export interface MissionData {
   mission: string
   vision: string
   values: MissionValue[]
+}
+
+// ── Product Types ─────────────────────────────────────────────
+
+export type ProductStatus = 'planning' | 'active' | 'paused' | 'completed' | 'deprecated'
+
+export interface Product {
+  id: string
+  name: string
+  description: string
+  status: ProductStatus
+  // Identity & strategy
+  purpose: string
+  businessGoals: string
+  targetAudience: string
+  valueProposition: string
+  monetization: string
+  goToMarket: string
+  marketingMethods: string
+  keyDifferentiators: string
+  // Technical
+  techStack: string
+  currentVersion: string | null
+  launchDate: string | null
+  githubUrl: string | null
+  apiDocsUrl: string | null
+  documentation: string
+  // Meta
+  ownerAgentId: string | null
+  progress: number
+  createdAt: string
+  updatedAt: string
 }

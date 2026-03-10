@@ -10,6 +10,7 @@ interface ProjectRow {
   priority: string
   lead_agent_id: string | null
   goal_id: string | null
+  product_id: string | null
   progress: number
   created_at: string
   updated_at: string
@@ -24,6 +25,7 @@ function rowToProject(row: ProjectRow): Project {
     priority: row.priority as Project['priority'],
     leadAgentId: row.lead_agent_id,
     goalId: row.goal_id ?? null,
+    productId: row.product_id ?? null,
     progress: row.progress,
     createdAt: row.created_at,
     updatedAt: row.updated_at,
@@ -45,14 +47,14 @@ export function getProject(id: string, db = getDb()): Project | null {
 }
 
 export function createProject(
-  data: { name: string; description?: string; status?: string; priority?: string; leadAgentId?: string | null; goalId?: string | null },
+  data: { name: string; description?: string; status?: string; priority?: string; leadAgentId?: string | null; goalId?: string | null; productId?: string | null },
   db = getDb()
 ): Project {
   const id = generateId()
   const now = new Date().toISOString()
   db.prepare(
-    `INSERT INTO projects (id, name, description, status, priority, lead_agent_id, goal_id, created_at, updated_at)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`
+    `INSERT INTO projects (id, name, description, status, priority, lead_agent_id, goal_id, product_id, created_at, updated_at)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
   ).run(
     id,
     data.name,
@@ -61,6 +63,7 @@ export function createProject(
     data.priority ?? 'medium',
     data.leadAgentId ?? null,
     data.goalId ?? null,
+    data.productId ?? null,
     now,
     now
   )
@@ -76,6 +79,7 @@ export function updateProject(
     priority: string
     leadAgentId: string | null
     goalId: string | null
+    productId: string | null
     progress: number
   }>,
   db = getDb()
@@ -89,6 +93,7 @@ export function updateProject(
   if (data.priority !== undefined) { fields.push('priority = ?'); values.push(data.priority) }
   if (data.leadAgentId !== undefined) { fields.push('lead_agent_id = ?'); values.push(data.leadAgentId) }
   if (data.goalId !== undefined) { fields.push('goal_id = ?'); values.push(data.goalId) }
+  if (data.productId !== undefined) { fields.push('product_id = ?'); values.push(data.productId) }
   if (data.progress !== undefined) { fields.push('progress = ?'); values.push(data.progress) }
 
   if (fields.length === 0) return getProject(id, db)

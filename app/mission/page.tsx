@@ -2,13 +2,14 @@
 
 import { useEffect, useState, useCallback } from 'react'
 import { renderMarkdown } from '@/lib/sanitize'
-import type { MissionData, MissionValue, Goal } from '@/lib/types'
+import type { MissionData, MissionValue, Goal, Product } from '@/lib/types'
 import Link from 'next/link'
 
 export default function MissionPage() {
   const [data, setData] = useState<MissionData | null>(null)
   const [userMd, setUserMd] = useState<string | null>(null)
   const [goals, setGoals] = useState<Goal[]>([])
+  const [products, setProducts] = useState<Product[]>([])
   const [editing, setEditing] = useState<string | null>(null)
   const [draft, setDraft] = useState('')
   const [saving, setSaving] = useState(false)
@@ -24,6 +25,10 @@ export default function MissionPage() {
     fetch('/api/goals')
       .then((r) => r.json())
       .then((d: unknown) => { if (Array.isArray(d)) setGoals(d) })
+      .catch(() => {})
+    fetch('/api/products')
+      .then((r) => r.json())
+      .then((d: unknown) => { if (Array.isArray(d)) setProducts(d) })
       .catch(() => {})
   }, [])
 
@@ -203,6 +208,72 @@ export default function MissionPage() {
           ))}
         </div>
       </section>
+
+      {/* Products summary */}
+      {products.length > 0 && (
+        <section style={{ marginBottom: '48px' }}>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '16px' }}>
+            <div style={sectionLabelStyle}>Products</div>
+            <Link href="/products" style={{ fontSize: '12px', color: 'var(--accent)', textDecoration: 'none' }}>
+              View all products →
+            </Link>
+          </div>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(240px, 1fr))', gap: '12px' }}>
+            {products.map((p) => {
+              const statusColors: Record<string, string> = {
+                planning: 'var(--system-blue)',
+                active: 'var(--system-green)',
+                paused: 'var(--system-orange)',
+                completed: 'var(--system-purple)',
+                deprecated: 'var(--text-tertiary)',
+              }
+              const color = statusColors[p.status] ?? 'var(--text-tertiary)'
+              return (
+                <Link
+                  key={p.id}
+                  href={`/products/${p.id}`}
+                  style={{ textDecoration: 'none' }}
+                >
+                  <div
+                    style={{
+                      background: 'var(--material-regular)',
+                      borderRadius: 'var(--radius-lg)',
+                      padding: '14px 16px',
+                      display: 'flex',
+                      flexDirection: 'column',
+                      gap: '8px',
+                      cursor: 'pointer',
+                      border: '1px solid transparent',
+                      transition: 'border-color 150ms',
+                    }}
+                  >
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                      <span style={{ fontSize: '13px', fontWeight: 600, color: 'var(--text-primary)' }}>{p.name}</span>
+                      <span style={{ fontSize: '10px', fontWeight: 600, padding: '2px 6px', borderRadius: '8px', background: color + '18', color, textTransform: 'capitalize' }}>
+                        {p.status}
+                      </span>
+                    </div>
+                    {p.purpose && (
+                      <span style={{ fontSize: '12px', color: 'var(--text-tertiary)', lineHeight: 1.4, display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>
+                        {p.purpose}
+                      </span>
+                    )}
+                    <div>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '10px', color: 'var(--text-quaternary)', marginBottom: '3px' }}>
+                        <span>Progress</span>
+                        <span>{p.progress}%</span>
+                      </div>
+                      <div style={{ height: '3px', borderRadius: '2px', background: 'var(--fill-quaternary)' }}>
+                        <div style={{ height: '100%', borderRadius: '2px', background: p.progress >= 100 ? '#22C55E' : 'var(--accent)', width: `${p.progress}%` }} />
+                      </div>
+                    </div>
+                  </div>
+                </Link>
+              )
+            })}
+          </div>
+        </section>
+      )}
 
       {/* Goals summary */}
       {goals.length > 0 && (
