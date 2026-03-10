@@ -1,7 +1,7 @@
 'use client'
 
 import { useCallback, useEffect, useState } from 'react'
-import { Map, MessageSquare, Columns3, Clock, Brain, Mic, Check, Keyboard, AlertCircle, Loader2, CheckCircle2, XCircle, ArrowLeft, ArrowRight, Rocket, RotateCcw } from 'lucide-react'
+import { Map, MessageSquare, Columns3, Clock, Brain, Mic, Check, Keyboard, AlertCircle, Loader2, CheckCircle2, XCircle, ArrowLeft, ArrowRight, Rocket, RotateCcw, Target, DollarSign } from 'lucide-react'
 import { useSettings } from '@/app/settings-provider'
 import { useTheme } from '@/app/providers'
 import { THEMES } from '@/lib/themes'
@@ -163,7 +163,7 @@ export function OnboardingWizard({ forceOpen, onClose }: OnboardingWizardProps) 
       })
   }
 
-  const TOTAL_STEPS = 7
+  const TOTAL_STEPS = 9
 
   const handleNext = useCallback(() => {
     // Commit operator name on step 1 (system check)
@@ -941,9 +941,189 @@ export function OnboardingWizard({ forceOpen, onClose }: OnboardingWizardProps) 
             </div>
           )}
 
-          {/* Step 6: Overview */}
+          {/* Step 6: Goals Setup (optional) */}
           {step === 6 && (
             <div key="step-6" className="animate-fade-in">
+              <h2 style={{
+                fontSize: 'var(--text-title2)',
+                fontWeight: 'var(--weight-bold)',
+                letterSpacing: 'var(--tracking-tight)',
+                color: 'var(--text-primary)',
+                marginBottom: 'var(--space-1)',
+              }}>
+                Set Your Goals
+              </h2>
+              <p style={{
+                fontSize: 'var(--text-subheadline)',
+                color: 'var(--text-tertiary)',
+                marginBottom: 'var(--space-4)',
+              }}>
+                Goals help agents understand the big picture. You can set these up later.
+              </p>
+
+              <div style={{
+                display: 'flex',
+                flexDirection: 'column',
+                gap: 'var(--space-3)',
+              }}>
+                {/* Goal types explanation */}
+                {[
+                  { icon: Target, type: 'Goal', desc: 'High-level strategic objectives for your organization' },
+                  { icon: Target, type: 'OKR', desc: 'Measurable key results that track goal progress' },
+                  { icon: Target, type: 'Key Result', desc: 'Specific metrics tied to outcomes' },
+                ].map(item => {
+                  const Icon = item.icon
+                  return (
+                    <div
+                      key={item.type}
+                      style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: 'var(--space-3)',
+                        padding: 'var(--space-3)',
+                        borderRadius: 'var(--radius-md)',
+                        background: 'var(--fill-quaternary)',
+                        border: '1px solid var(--separator)',
+                      }}
+                    >
+                      <div style={{
+                        width: 36,
+                        height: 36,
+                        borderRadius: 8,
+                        background: 'var(--accent-fill)',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        flexShrink: 0,
+                      }}>
+                        <Icon size={18} style={{ color: 'var(--accent)' }} />
+                      </div>
+                      <div>
+                        <div style={{ fontSize: 'var(--text-subheadline)', fontWeight: 'var(--weight-semibold)', color: 'var(--text-primary)' }}>
+                          {item.type}
+                        </div>
+                        <div style={{ fontSize: 'var(--text-caption1)', color: 'var(--text-tertiary)' }}>
+                          {item.desc}
+                        </div>
+                      </div>
+                    </div>
+                  )
+                })}
+
+                <p style={{
+                  fontSize: 'var(--text-caption1)',
+                  color: 'var(--text-quaternary)',
+                  textAlign: 'center',
+                  marginTop: 'var(--space-2)',
+                }}>
+                  Create goals from the Goals page after setup.
+                </p>
+              </div>
+            </div>
+          )}
+
+          {/* Step 7: Budget Allocation (optional) */}
+          {step === 7 && (
+            <div key="step-7" className="animate-fade-in">
+              <h2 style={{
+                fontSize: 'var(--text-title2)',
+                fontWeight: 'var(--weight-bold)',
+                letterSpacing: 'var(--tracking-tight)',
+                color: 'var(--text-primary)',
+                marginBottom: 'var(--space-1)',
+              }}>
+                Budget Controls
+              </h2>
+              <p style={{
+                fontSize: 'var(--text-subheadline)',
+                color: 'var(--text-tertiary)',
+                marginBottom: 'var(--space-4)',
+              }}>
+                Optionally set spending limits per agent. This is entirely optional.
+              </p>
+
+              <div style={{
+                display: 'flex',
+                flexDirection: 'column',
+                gap: 'var(--space-3)',
+              }}>
+                <div style={{
+                  padding: 'var(--space-4)',
+                  borderRadius: 'var(--radius-md)',
+                  background: 'var(--fill-quaternary)',
+                  border: '1px solid var(--separator)',
+                }}>
+                  <div className="flex items-center" style={{ gap: 'var(--space-3)', marginBottom: 'var(--space-3)' }}>
+                    <div style={{
+                      width: 36,
+                      height: 36,
+                      borderRadius: 8,
+                      background: 'var(--accent-fill)',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      flexShrink: 0,
+                    }}>
+                      <DollarSign size={18} style={{ color: 'var(--accent)' }} />
+                    </div>
+                    <div>
+                      <div style={{ fontSize: 'var(--text-subheadline)', fontWeight: 'var(--weight-semibold)', color: 'var(--text-primary)' }}>
+                        Per-Agent Budgets
+                      </div>
+                      <div style={{ fontSize: 'var(--text-caption1)', color: 'var(--text-tertiary)' }}>
+                        Set monthly spending limits for each agent
+                      </div>
+                    </div>
+                  </div>
+
+                  <div style={{ fontSize: 'var(--text-caption1)', color: 'var(--text-secondary)', lineHeight: 'var(--leading-relaxed)' }}>
+                    When a budget is set, agents will pause execution if they exceed their monthly limit.
+                    Without a budget, agents run with no spending constraints.
+                  </div>
+                </div>
+
+                <div style={{
+                  display: 'flex',
+                  gap: 'var(--space-2)',
+                  justifyContent: 'center',
+                }}>
+                  {[
+                    { pct: '< 70%', color: 'var(--system-green)', label: 'On track' },
+                    { pct: '70-90%', color: 'var(--system-orange)', label: 'Warning' },
+                    { pct: '> 90%', color: 'var(--system-red)', label: 'Near limit' },
+                  ].map(b => (
+                    <div key={b.label} style={{
+                      flex: 1,
+                      padding: 'var(--space-2)',
+                      borderRadius: 'var(--radius-sm)',
+                      border: '1px solid var(--separator)',
+                      textAlign: 'center',
+                    }}>
+                      <div style={{ fontSize: 'var(--text-caption2)', fontWeight: 600, color: b.color }}>
+                        {b.pct}
+                      </div>
+                      <div style={{ fontSize: 'var(--text-caption2)', color: 'var(--text-tertiary)' }}>
+                        {b.label}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+
+                <p style={{
+                  fontSize: 'var(--text-caption1)',
+                  color: 'var(--text-quaternary)',
+                  textAlign: 'center',
+                  marginTop: 'var(--space-1)',
+                }}>
+                  Configure budgets from each agent&apos;s detail page. Skip if not needed.
+                </p>
+              </div>
+            </div>
+          )}
+
+          {/* Step 8: Overview */}
+          {step === 8 && (
+            <div key="step-8" className="animate-fade-in">
               <h2 style={{
                 fontSize: 'var(--text-title2)',
                 fontWeight: 'var(--weight-bold)',

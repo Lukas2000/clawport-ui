@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server'
 import { getApprovals, createApproval } from '@/lib/approvals'
+import { logAudit } from '@/lib/audit'
 import { apiErrorResponse } from '@/lib/api-error'
 import type { ApprovalStatus } from '@/lib/types'
 
@@ -20,6 +21,15 @@ export async function POST(request: Request) {
       return apiErrorResponse(new Error('Title is required'), 'Title is required', 400)
     }
     const approval = createApproval(body)
+    logAudit({
+      actorType: body.requestedByAgentId ? 'agent' : 'operator',
+      actorId: body.requestedByAgentId ?? null,
+      action: 'approval.created',
+      entityType: 'approval',
+      entityId: approval.id,
+      agentId: body.requestedByAgentId ?? null,
+      details: { title: approval.title },
+    })
     return NextResponse.json(approval, { status: 201 })
   } catch (err) {
     return apiErrorResponse(err, 'Failed to create approval')

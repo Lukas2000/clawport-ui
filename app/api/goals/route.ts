@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server'
 import { getGoals, createGoal } from '@/lib/goals'
+import { logAudit } from '@/lib/audit'
 import { apiErrorResponse } from '@/lib/api-error'
 import type { GoalStatus, GoalType } from '@/lib/types'
 
@@ -40,6 +41,7 @@ export async function POST(request: Request) {
       targetValue: body.targetValue,
       targetDate: body.targetDate,
     })
+    logAudit({ actorType: 'operator', action: 'goal.created', entityType: 'goal', entityId: goal.id, details: { title: goal.title } })
     return NextResponse.json(goal, { status: 201 })
   } catch (err) {
     return apiErrorResponse(err, 'Failed to create goal')

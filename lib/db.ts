@@ -92,7 +92,7 @@ function migrate(db: Database.Database) {
       description TEXT NOT NULL DEFAULT '',
       requested_by_agent_id TEXT,
       status TEXT NOT NULL DEFAULT 'pending'
-        CHECK(status IN ('pending','approved','rejected')),
+        CHECK(status IN ('pending','approved','rejected','revision_requested')),
       decision_note TEXT,
       task_id TEXT REFERENCES tasks(id) ON DELETE SET NULL,
       created_at TEXT NOT NULL DEFAULT (datetime('now')),
@@ -217,6 +217,34 @@ function migrate(db: Database.Database) {
       updated_at TEXT NOT NULL DEFAULT (datetime('now'))
     );
 
+    -- Immutable audit trail
+    CREATE TABLE IF NOT EXISTS audit_log (
+      id TEXT PRIMARY KEY,
+      timestamp TEXT NOT NULL DEFAULT (datetime('now')),
+      actor_type TEXT NOT NULL CHECK(actor_type IN ('operator','agent','system')),
+      actor_id TEXT,
+      action TEXT NOT NULL,
+      entity_type TEXT NOT NULL,
+      entity_id TEXT,
+      agent_id TEXT,
+      run_id TEXT,
+      details TEXT NOT NULL DEFAULT '{}',
+      created_at TEXT NOT NULL DEFAULT (datetime('now'))
+    );
+    CREATE INDEX IF NOT EXISTS idx_audit_ts ON audit_log(timestamp DESC);
+    CREATE INDEX IF NOT EXISTS idx_audit_entity ON audit_log(entity_type, entity_id);
+    CREATE INDEX IF NOT EXISTS idx_audit_run ON audit_log(run_id);
+
+    -- Approval rules for auto-triggering
+    CREATE TABLE IF NOT EXISTS approval_rules (
+      id TEXT PRIMARY KEY,
+      name TEXT NOT NULL,
+      trigger_condition TEXT NOT NULL,
+      description TEXT NOT NULL DEFAULT '',
+      enabled INTEGER NOT NULL DEFAULT 1,
+      created_at TEXT NOT NULL DEFAULT (datetime('now'))
+    );
+
     -- Goals: Mission -> Goals/OKRs -> Projects -> Tasks
     CREATE TABLE IF NOT EXISTS goals (
       id TEXT PRIMARY KEY,
@@ -251,6 +279,9 @@ function migrate(db: Database.Database) {
   addColumn('tasks', 'cancelled_at', 'TEXT')
   addColumn('tasks', 'hidden_at', 'TEXT')
   addColumn('projects', 'goal_id', 'TEXT REFERENCES goals(id) ON DELETE SET NULL')
+  addColumn('approvals', 'approval_type', "TEXT DEFAULT 'manual'")
+  addColumn('approvals', 'context', "TEXT DEFAULT '{}'")
+  addColumn('approvals', 'decided_by', 'TEXT')
 }
 
 /**

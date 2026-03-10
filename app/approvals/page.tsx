@@ -7,9 +7,10 @@ const STATUS_COLORS: Record<ApprovalStatus, string> = {
   pending: 'var(--system-orange)',
   approved: 'var(--system-green)',
   rejected: 'var(--system-red)',
+  revision_requested: 'var(--system-blue)',
 }
 
-const TABS: ApprovalStatus[] = ['pending', 'approved', 'rejected']
+const TABS: ApprovalStatus[] = ['pending', 'approved', 'rejected', 'revision_requested']
 
 export default function ApprovalsPage() {
   const [approvals, setApprovals] = useState<Approval[]>([])
@@ -32,7 +33,7 @@ export default function ApprovalsPage() {
     return agents.find((a) => a.id === id)?.name ?? id
   }
 
-  async function decide(id: string, status: 'approved' | 'rejected', note?: string) {
+  async function decide(id: string, status: 'approved' | 'rejected' | 'revision_requested', note?: string) {
     await fetch(`/api/approvals/${id}`, {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json' },
@@ -128,6 +129,9 @@ export default function ApprovalsPage() {
                 <div style={{ display: 'flex', gap: '6px', flexShrink: 0 }}>
                   <button onClick={() => decide(approval.id, 'approved')} style={{ ...btnSmall, background: 'var(--system-green)', color: '#fff' }}>
                     Approve
+                  </button>
+                  <button onClick={() => decide(approval.id, 'revision_requested')} style={{ ...btnSmall, background: 'var(--system-blue)', color: '#fff' }}>
+                    Revise
                   </button>
                   <button onClick={() => decide(approval.id, 'rejected')} style={{ ...btnSmall, background: 'var(--system-red)', color: '#fff' }}>
                     Reject

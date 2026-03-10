@@ -10,6 +10,9 @@ interface ApprovalRow {
   status: string
   decision_note: string | null
   task_id: string | null
+  approval_type: string | null
+  context: string | null
+  decided_by: string | null
   created_at: string
   decided_at: string | null
 }
@@ -23,6 +26,9 @@ function rowToApproval(row: ApprovalRow): Approval {
     status: row.status as ApprovalStatus,
     decisionNote: row.decision_note,
     taskId: row.task_id,
+    approvalType: row.approval_type ?? 'manual',
+    context: row.context ?? '{}',
+    decidedBy: row.decided_by,
     createdAt: row.created_at,
     decidedAt: row.decided_at,
   }
@@ -64,6 +70,9 @@ export function createApproval(
     status: 'pending',
     decisionNote: null,
     taskId: data.taskId ?? null,
+    approvalType: 'manual',
+    context: '{}',
+    decidedBy: null,
     createdAt: now,
     decidedAt: null,
   }
@@ -71,14 +80,15 @@ export function createApproval(
 
 export function decideApproval(
   id: string,
-  status: 'approved' | 'rejected',
+  status: 'approved' | 'rejected' | 'revision_requested',
   note?: string,
+  decidedBy?: string,
   db = getDb()
 ): Approval | null {
   const now = new Date().toISOString()
   db.prepare(
-    'UPDATE approvals SET status = ?, decision_note = ?, decided_at = ? WHERE id = ?'
-  ).run(status, note ?? null, now, id)
+    'UPDATE approvals SET status = ?, decision_note = ?, decided_by = ?, decided_at = ? WHERE id = ?'
+  ).run(status, note ?? null, decidedBy ?? null, now, id)
   const row = db.prepare('SELECT * FROM approvals WHERE id = ?').get(id) as ApprovalRow | undefined
   return row ? rowToApproval(row) : null
 }

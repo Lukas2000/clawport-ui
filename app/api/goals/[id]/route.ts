@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server'
 import { getGoal, updateGoal, deleteGoal } from '@/lib/goals'
+import { logAudit } from '@/lib/audit'
 import { apiErrorResponse } from '@/lib/api-error'
 
 export async function GET(
@@ -40,6 +41,7 @@ export async function PUT(
     if (!goal) {
       return apiErrorResponse(new Error('Goal not found'), 'Goal not found', 404)
     }
+    logAudit({ actorType: 'operator', action: 'goal.updated', entityType: 'goal', entityId: id, details: body })
     return NextResponse.json(goal)
   } catch (err) {
     return apiErrorResponse(err, 'Failed to update goal')
@@ -56,6 +58,7 @@ export async function DELETE(
     if (!deleted) {
       return apiErrorResponse(new Error('Goal not found'), 'Goal not found', 404)
     }
+    logAudit({ actorType: 'operator', action: 'goal.deleted', entityType: 'goal', entityId: id })
     return NextResponse.json({ success: true })
   } catch (err) {
     return apiErrorResponse(err, 'Failed to delete goal')

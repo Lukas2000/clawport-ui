@@ -340,7 +340,7 @@ export interface TaskStats {
 
 // ── Approval Types ────────────────────────────────────────────
 
-export type ApprovalStatus = 'pending' | 'approved' | 'rejected'
+export type ApprovalStatus = 'pending' | 'approved' | 'rejected' | 'revision_requested'
 
 export interface Approval {
   id: string
@@ -350,8 +350,47 @@ export interface Approval {
   status: ApprovalStatus
   decisionNote: string | null
   taskId: string | null
+  approvalType: string
+  context: string
+  decidedBy: string | null
   createdAt: string
   decidedAt: string | null
+}
+
+export interface ApprovalRule {
+  id: string
+  name: string
+  triggerCondition: string
+  description: string
+  enabled: boolean
+  createdAt: string
+}
+
+// ── Audit Types ──────────────────────────────────────────────
+
+export type AuditActorType = 'operator' | 'agent' | 'system'
+
+export interface AuditEntry {
+  id: string
+  timestamp: string
+  actorType: AuditActorType
+  actorId: string | null
+  action: string
+  entityType: string
+  entityId: string | null
+  agentId: string | null
+  runId: string | null
+  details: Record<string, unknown>
+  createdAt: string
+}
+
+// ── Workspace Profile Types ──────────────────────────────────
+
+export interface WorkspaceProfile {
+  id: string
+  name: string
+  path: string
+  lastUsed: string
 }
 
 // ── Agent Management Types ────────────────────────────────────

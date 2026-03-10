@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server'
 import { getTasks, createTask } from '@/lib/tasks'
+import { logAudit } from '@/lib/audit'
 import { apiErrorResponse } from '@/lib/api-error'
 
 export async function GET(request: Request) {
@@ -26,6 +27,7 @@ export async function POST(request: Request) {
       return apiErrorResponse(new Error('Title is required'), 'Title is required', 400)
     }
     const task = createTask(body)
+    logAudit({ actorType: 'operator', action: 'task.created', entityType: 'task', entityId: task.id, details: { title: task.title } })
     return NextResponse.json(task, { status: 201 })
   } catch (err) {
     return apiErrorResponse(err, 'Failed to create task')
