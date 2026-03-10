@@ -60,7 +60,7 @@ const NAV_SECTIONS: NavSection[] = [
   {
     label: 'Monitor',
     items: [
-      { href: '/crons', label: 'Crons', icon: Clock, badge: 'errors' },
+      { href: '/crons', label: 'Scheduling', icon: Clock, badge: 'errors' },
       { href: '/activity', label: 'Activity', icon: Activity },
       { href: '/costs', label: 'Costs', icon: DollarSign },
     ],

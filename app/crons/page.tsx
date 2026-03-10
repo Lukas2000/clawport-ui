@@ -2,11 +2,11 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import Link from "next/link";
-import type { Agent, CronJob, CronRun } from "@/lib/types";
+import type { Agent, CronJob, CronRun, HeartbeatConfig, HeartbeatRun } from "@/lib/types";
 import type { Pipeline } from "@/lib/cron-pipelines";
 import { formatDuration } from "@/lib/cron-utils";
 import { Skeleton } from "@/components/ui/skeleton";
-import { RefreshCw, BarChart3, Calendar, GitBranch, Copy, Check } from "lucide-react";
+import { RefreshCw, BarChart3, Calendar, GitBranch, Copy, Check, Heart } from "lucide-react";
 import { ErrorState } from "@/components/ErrorState";
 import { WeeklySchedule } from "@/components/crons/WeeklySchedule";
 import { PipelineGraph } from "@/components/crons/PipelineGraph";
@@ -424,6 +424,182 @@ function RecentRuns({ jobId }: { jobId: string }) {
   );
 }
 
+/* ─── Heartbeat Agents Section ─────────────────────────────────── */
+
+const HB_STATUS_COLORS: Record<string, string> = {
+  queued: "var(--text-tertiary)",
+  running: "#06B6D4",
+  succeeded: "var(--system-green)",
+  failed: "var(--system-red)",
+  cancelled: "var(--text-tertiary)",
+  timed_out: "var(--system-orange)",
+};
+
+function HeartbeatAgentsSection({ agents }: { agents: Agent[] }) {
+  const [configs, setConfigs] = useState<(HeartbeatConfig & { runs: HeartbeatRun[] })[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    async function load() {
+      try {
+        const res = await fetch("/api/heartbeat");
+        if (!res.ok) { setLoading(false); return; }
+        const allConfigs: HeartbeatConfig[] = await res.json();
+        const enabled = allConfigs.filter(c => c.enabled);
+        if (enabled.length === 0) { setConfigs([]); setLoading(false); return; }
+
+        // Fetch recent runs for each enabled agent
+        const withRuns = await Promise.all(
+          enabled.map(async (cfg) => {
+            try {
+              const runsRes = await fetch(`/api/heartbeat/${cfg.agentId}/runs?limit=3`);
+              const runs = runsRes.ok ? await runsRes.json() : [];
+              return { ...cfg, runs };
+            } catch {
+              return { ...cfg, runs: [] as HeartbeatRun[] };
+            }
+          })
+        );
+        setConfigs(withRuns);
+      } catch {
+        // silent
+      } finally {
+        setLoading(false);
+      }
+    }
+    load();
+  }, []);
+
+  if (loading) {
+    return (
+      <div style={{ marginTop: "var(--space-4)" }}>
+        <Skeleton style={{ width: 140, height: 14, marginBottom: 8 }} />
+        <Skeleton style={{ width: "100%", height: 48 }} />
+      </div>
+    );
+  }
+
+  if (configs.length === 0) return null;
+
+  const agentMap = new Map(agents.map(a => [a.id, a]));
+
+  return (
+    <div style={{ marginTop: "var(--space-5)" }}>
+      <div style={{
+        display: "flex",
+        alignItems: "center",
+        gap: "var(--space-2)",
+        marginBottom: "var(--space-3)",
+      }}>
+        <Heart size={14} style={{ color: "var(--system-green)" }} />
+        <span style={{
+          fontSize: "var(--text-footnote)",
+          fontWeight: "var(--weight-semibold)",
+          color: "var(--text-primary)",
+        }}>
+          Heartbeat Agents ({configs.length})
+        </span>
+      </div>
+
+      <div style={{
+        borderRadius: "var(--radius-md)",
+        overflow: "hidden",
+        background: "var(--material-regular)",
+        backdropFilter: "blur(20px)",
+        WebkitBackdropFilter: "blur(20px)",
+      }}>
+        {configs.map((cfg, idx) => {
+          const agent = agentMap.get(cfg.agentId);
+          const lastRun = cfg.runs[0];
+          const hasErrors = cfg.consecutiveErrors > 0;
+
+          return (
+            <div key={cfg.agentId}>
+              {idx > 0 && (
+                <div style={{ height: 1, background: "var(--separator)", marginLeft: "var(--space-4)", marginRight: "var(--space-4)" }} />
+              )}
+              <div
+                style={{
+                  padding: "var(--space-3) var(--space-4)",
+                  background: hasErrors ? "rgba(255,69,58,0.04)" : undefined,
+                  borderLeft: `3px solid ${hasErrors ? "var(--system-red)" : cfg.enabled ? "var(--system-green)" : "transparent"}`,
+                }}
+              >
+                <div className="flex items-center" style={{ gap: "var(--space-3)", minHeight: 32 }}>
+                  <span
+                    style={{
+                      width: 8,
+                      height: 8,
+                      borderRadius: "50%",
+                      background: hasErrors ? "var(--system-red)" : "var(--system-green)",
+                      flexShrink: 0,
+                      animation: lastRun?.status === "running" ? "pulse-cyan 1.5s ease-in-out infinite" : undefined,
+                    }}
+                  />
+                  <div className="min-w-0 flex-1">
+                    <div className="flex items-center" style={{ gap: "var(--space-2)" }}>
+                      <span style={{ fontSize: "var(--text-footnote)", fontWeight: "var(--weight-semibold)", color: "var(--text-primary)" }}>
+                        {agent?.name ?? cfg.agentId}
+                      </span>
+                      <span style={{
+                        fontSize: "var(--text-caption2)",
+                        fontFamily: "var(--font-mono)",
+                        color: "var(--text-tertiary)",
+                      }}>
+                        every {cfg.intervalMinutes < 60 ? `${cfg.intervalMinutes}m` : cfg.intervalMinutes < 1440 ? `${cfg.intervalMinutes / 60}h` : `${cfg.intervalMinutes / 1440}d`}
+                      </span>
+                    </div>
+                    {hasErrors && cfg.lastError && (
+                      <div style={{ fontSize: "var(--text-caption2)", color: "var(--system-red)", marginTop: 2 }}>
+                        {cfg.consecutiveErrors}x errors: {cfg.lastError.length > 80 ? cfg.lastError.slice(0, 77) + "..." : cfg.lastError}
+                      </div>
+                    )}
+                  </div>
+                  <div className="flex items-center flex-shrink-0" style={{ gap: "var(--space-3)" }}>
+                    {agent && (
+                      <Link
+                        href={`/agents/${agent.id}`}
+                        className="focus-ring"
+                        style={{ fontSize: "var(--text-caption1)", color: "var(--system-blue)", textDecoration: "none" }}
+                      >
+                        Configure
+                      </Link>
+                    )}
+                    <span style={{ fontSize: "var(--text-caption1)", color: "var(--text-tertiary)" }}>
+                      Last: {cfg.lastBeatAt ? timeAgo(cfg.lastBeatAt) : "never"}
+                    </span>
+                  </div>
+                </div>
+
+                {/* Recent runs inline */}
+                {cfg.runs.length > 0 && (
+                  <div className="flex items-center" style={{ gap: "var(--space-2)", marginTop: "var(--space-2)", marginLeft: 20 }}>
+                    {cfg.runs.map(run => (
+                      <span
+                        key={run.id}
+                        title={`${run.trigger} — ${run.status} — ${run.tasksExecuted}/${run.tasksChecked} tasks`}
+                        style={{
+                          width: 8,
+                          height: 8,
+                          borderRadius: 2,
+                          background: HB_STATUS_COLORS[run.status] ?? "var(--text-tertiary)",
+                        }}
+                      />
+                    ))}
+                    <span style={{ fontSize: "var(--text-caption2)", color: "var(--text-quaternary)", marginLeft: 2 }}>
+                      recent runs
+                    </span>
+                  </div>
+                )}
+              </div>
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
 /* ─── Component ─────────────────────────────────────────────────── */
 
 export default function CronsPage() {
@@ -540,7 +716,7 @@ export default function CronsPage() {
         <div className="flex items-center justify-between" style={{ padding: "var(--space-4) var(--space-6)" }}>
           <div>
             <h1 style={{ fontSize: "var(--text-title1)", fontWeight: "var(--weight-bold)", color: "var(--text-primary)", letterSpacing: "-0.5px", lineHeight: "var(--leading-tight)" }}>
-              Cron Monitor
+              Scheduling
             </h1>
             {!loading && (
               <p style={{ fontSize: "var(--text-footnote)", color: "var(--text-secondary)", marginTop: "var(--space-1)" }}>
@@ -855,6 +1031,8 @@ export default function CronsPage() {
                     })}
                   </div>
                 )}
+                {/* Heartbeat agents */}
+                <HeartbeatAgentsSection agents={agents} />
               </>
             )}
 

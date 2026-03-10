@@ -2,8 +2,8 @@
 import { useState, useEffect, useRef, useCallback } from "react"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
-import { Trash2, Upload, X } from "lucide-react"
-import type { Agent, CronJob } from "@/lib/types"
+import { Trash2, Upload, X, Play, Pause, RefreshCw, AlertCircle } from "lucide-react"
+import type { Agent, CronJob, HeartbeatConfig, HeartbeatRun } from "@/lib/types"
 import { AgentAvatar } from "@/components/AgentAvatar"
 import { useSettings } from "@/app/settings-provider"
 import { ConfigFileEditor, type SaveResult } from "@/components/agents/ConfigFileEditor"
@@ -188,6 +188,378 @@ function Card({
     >
       {children}
     </div>
+  )
+}
+
+const HB_RUN_STATUS_COLORS: Record<string, string> = {
+  queued: '#6B7280',
+  running: '#06B6D4',
+  succeeded: '#22C55E',
+  failed: '#EF4444',
+  cancelled: '#9CA3AF',
+  timed_out: '#F59E0B',
+}
+
+function hbRelativeTime(ts: string | null): string {
+  if (!ts) return 'Never'
+  const diff = Date.now() - new Date(ts).getTime()
+  const mins = Math.floor(diff / 60000)
+  if (mins < 1) return 'just now'
+  if (mins < 60) return `${mins}m ago`
+  const hrs = Math.floor(mins / 60)
+  if (hrs < 24) return `${hrs}h ago`
+  const days = Math.floor(hrs / 24)
+  return `${days}d ago`
+}
+
+function SchedulingCard({ agentId, crons }: { agentId: string; crons: CronJob[] }) {
+  const [hbConfig, setHbConfig] = useState<HeartbeatConfig | null>(null)
+  const [hbRuns, setHbRuns] = useState<HeartbeatRun[]>([])
+  const [hbLoading, setHbLoading] = useState(true)
+
+  const loadHeartbeat = useCallback(async () => {
+    try {
+      const [configRes, runsRes] = await Promise.all([
+        fetch(`/api/heartbeat/${agentId}`),
+        fetch(`/api/heartbeat/${agentId}/runs?limit=5`),
+      ])
+      if (configRes.ok) setHbConfig(await configRes.json())
+      else setHbConfig(null)
+      if (runsRes.ok) setHbRuns(await runsRes.json())
+    } finally {
+      setHbLoading(false)
+    }
+  }, [agentId])
+
+  useEffect(() => { loadHeartbeat() }, [loadHeartbeat])
+
+  async function handleToggle() {
+    const res = await fetch(`/api/heartbeat/${agentId}`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        enabled: !hbConfig?.enabled,
+        intervalMinutes: hbConfig?.intervalMinutes ?? 60,
+      }),
+    })
+    if (res.ok) loadHeartbeat()
+  }
+
+  async function handleManualTrigger() {
+    await fetch(`/api/heartbeat/${agentId}`, { method: 'POST' })
+    loadHeartbeat()
+  }
+
+  async function handleIntervalChange(minutes: number) {
+    await fetch(`/api/heartbeat/${agentId}`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        enabled: hbConfig?.enabled ?? false,
+        intervalMinutes: minutes,
+      }),
+    })
+    loadHeartbeat()
+  }
+
+  return (
+    <Card>
+      <div
+        className="section-header"
+        style={{
+          marginBottom: "var(--space-3)",
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "space-between",
+        }}
+      >
+        <span>Scheduling</span>
+      </div>
+
+      {/* ── OpenClaw Crons (read-only) ── */}
+      {crons.length > 0 && (
+        <>
+          <div style={{
+            fontSize: "var(--text-caption2)",
+            fontWeight: 600,
+            color: "var(--text-tertiary)",
+            textTransform: "uppercase",
+            letterSpacing: "0.05em",
+            marginBottom: "var(--space-2)",
+          }}>
+            Cron Jobs ({crons.length})
+          </div>
+          <div
+            style={{
+              borderRadius: "var(--radius-md)",
+              overflow: "hidden",
+              border: "1px solid var(--separator)",
+              marginBottom: "var(--space-4)",
+            }}
+          >
+            {crons.map((c, idx) => (
+              <div
+                key={c.id}
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  gap: "var(--space-2)",
+                  minHeight: 44,
+                  padding: "0 var(--space-3)",
+                  borderTop: idx > 0 ? "1px solid var(--separator)" : undefined,
+                  background:
+                    c.status === "error" ? "rgba(255,69,58,0.06)" : undefined,
+                }}
+              >
+                <StatusDot status={c.status} />
+                <span
+                  style={{
+                    fontSize: "var(--text-body)",
+                    fontFamily: "var(--font-mono)",
+                    fontWeight: "var(--weight-medium)",
+                    color: "var(--text-primary)",
+                    flex: 1,
+                    overflow: "hidden",
+                    textOverflow: "ellipsis",
+                    whiteSpace: "nowrap",
+                  }}
+                >
+                  {c.name}
+                </span>
+                <span
+                  style={{
+                    fontSize: "var(--text-caption1)",
+                    fontFamily: "var(--font-mono)",
+                    color: "var(--text-tertiary)",
+                    flexShrink: 0,
+                  }}
+                >
+                  {c.schedule}
+                </span>
+                <span
+                  style={{
+                    fontSize: "var(--text-caption2)",
+                    fontWeight: "var(--weight-medium)",
+                    padding: "2px 8px",
+                    borderRadius: 20,
+                    flexShrink: 0,
+                    background:
+                      c.status === "ok"
+                        ? "rgba(48,209,88,0.1)"
+                        : c.status === "error"
+                          ? "rgba(255,69,58,0.1)"
+                          : "rgba(120,120,128,0.1)",
+                    color:
+                      c.status === "ok"
+                        ? "var(--system-green)"
+                        : c.status === "error"
+                          ? "var(--system-red)"
+                          : "var(--text-secondary)",
+                  }}
+                >
+                  {c.status}
+                </span>
+              </div>
+            ))}
+          </div>
+          <div style={{ textAlign: "right", marginBottom: "var(--space-4)" }}>
+            <Link
+              href="/crons"
+              className="focus-ring"
+              style={{
+                fontSize: "var(--text-footnote)",
+                color: "var(--system-blue)",
+                textDecoration: "none",
+                fontWeight: "var(--weight-medium)",
+              }}
+            >
+              View all crons &rarr;
+            </Link>
+          </div>
+        </>
+      )}
+
+      {/* ── Heartbeat (read-write) ── */}
+      <div style={{
+        fontSize: "var(--text-caption2)",
+        fontWeight: 600,
+        color: "var(--text-tertiary)",
+        textTransform: "uppercase",
+        letterSpacing: "0.05em",
+        marginBottom: "var(--space-2)",
+      }}>
+        Heartbeat
+      </div>
+
+      {hbLoading ? (
+        <div style={{ fontSize: "var(--text-footnote)", color: "var(--text-quaternary)", padding: "8px 0" }}>
+          Loading...
+        </div>
+      ) : (
+        <div style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
+          {/* Controls row */}
+          <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+            <button
+              onClick={handleToggle}
+              className="focus-ring"
+              style={{
+                display: "flex",
+                alignItems: "center",
+                gap: "6px",
+                padding: "6px 12px",
+                borderRadius: "6px",
+                border: "1px solid var(--separator)",
+                background: hbConfig?.enabled ? "color-mix(in srgb, #22C55E 12%, transparent)" : "transparent",
+                color: hbConfig?.enabled ? "#22C55E" : "var(--text-secondary)",
+                fontSize: "12px",
+                fontWeight: 500,
+                cursor: "pointer",
+              }}
+            >
+              {hbConfig?.enabled ? <Pause size={12} /> : <Play size={12} />}
+              {hbConfig?.enabled ? "Enabled" : "Disabled"}
+            </button>
+
+            <button
+              onClick={handleManualTrigger}
+              className="focus-ring"
+              style={{
+                display: "flex",
+                alignItems: "center",
+                gap: "4px",
+                padding: "6px 10px",
+                borderRadius: "6px",
+                border: "1px solid var(--separator)",
+                background: "transparent",
+                color: "var(--text-secondary)",
+                fontSize: "12px",
+                cursor: "pointer",
+              }}
+            >
+              <RefreshCw size={12} />
+              Trigger
+            </button>
+
+            <select
+              value={hbConfig?.intervalMinutes ?? 60}
+              onChange={(e) => handleIntervalChange(Number(e.target.value))}
+              style={{
+                marginLeft: "auto",
+                padding: "4px 8px",
+                borderRadius: "4px",
+                border: "1px solid var(--separator)",
+                background: "transparent",
+                fontSize: "11px",
+                color: "var(--text-secondary)",
+                cursor: "pointer",
+                outline: "none",
+              }}
+            >
+              <option value={5}>Every 5 min</option>
+              <option value={15}>Every 15 min</option>
+              <option value={30}>Every 30 min</option>
+              <option value={60}>Every hour</option>
+              <option value={360}>Every 6 hours</option>
+              <option value={1440}>Daily</option>
+            </select>
+          </div>
+
+          {/* Status info */}
+          {hbConfig && (
+            <div style={{ display: "flex", gap: "16px", fontSize: "11px", color: "var(--text-tertiary)" }}>
+              <span>Last beat: {hbRelativeTime(hbConfig.lastBeatAt)}</span>
+              {hbConfig.consecutiveErrors > 0 && (
+                <span style={{ color: "var(--system-red)", display: "flex", alignItems: "center", gap: "3px" }}>
+                  <AlertCircle size={10} />
+                  {hbConfig.consecutiveErrors} consecutive errors
+                </span>
+              )}
+            </div>
+          )}
+
+          {hbConfig?.lastError && (
+            <div
+              style={{
+                padding: "8px 10px",
+                borderRadius: "6px",
+                background: "rgba(239,68,68,0.08)",
+                border: "1px solid rgba(239,68,68,0.2)",
+                fontSize: "11px",
+                color: "var(--system-red)",
+                whiteSpace: "pre-wrap",
+                wordBreak: "break-word",
+              }}
+            >
+              {hbConfig.lastError}
+            </div>
+          )}
+
+          {/* Recent heartbeat runs */}
+          {hbRuns.length > 0 && (
+            <div>
+              <div style={{
+                fontSize: "11px",
+                fontWeight: 600,
+                color: "var(--text-tertiary)",
+                marginBottom: "6px",
+                textTransform: "uppercase",
+                letterSpacing: "0.05em",
+              }}>
+                Recent Runs
+              </div>
+              <div style={{ display: "flex", flexDirection: "column", gap: "4px" }}>
+                {hbRuns.map(run => (
+                  <div
+                    key={run.id}
+                    style={{
+                      display: "flex",
+                      alignItems: "center",
+                      gap: "8px",
+                      padding: "6px 8px",
+                      borderRadius: "4px",
+                      border: "1px solid var(--separator)",
+                      fontSize: "11px",
+                    }}
+                  >
+                    <span
+                      style={{
+                        width: "6px",
+                        height: "6px",
+                        borderRadius: "50%",
+                        background: HB_RUN_STATUS_COLORS[run.status] ?? "#6B7280",
+                        flexShrink: 0,
+                      }}
+                    />
+                    <span style={{ color: "var(--text-secondary)", flex: 1 }}>
+                      {run.trigger}
+                    </span>
+                    <span style={{ color: "var(--text-tertiary)", fontFamily: "var(--font-mono)" }}>
+                      {run.tasksExecuted}/{run.tasksChecked}
+                    </span>
+                    <span style={{ color: "var(--text-quaternary)" }}>
+                      {hbRelativeTime(run.createdAt)}
+                    </span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Empty state when no crons and heartbeat disabled */}
+      {crons.length === 0 && !hbConfig?.enabled && !hbLoading && (
+        <div
+          style={{
+            fontSize: "var(--text-footnote)",
+            color: "var(--text-tertiary)",
+            marginTop: "var(--space-2)",
+          }}
+        >
+          No cron jobs. Enable heartbeat above to schedule autonomous runs.
+        </div>
+      )}
+    </Card>
   )
 }
 
@@ -714,119 +1086,8 @@ export function AgentDetailClient({ agent: initialAgent, allAgents, crons }: Age
           </Card>
         )}
 
-        {/* ── Crons card ── */}
-        <Card>
-          <div
-            className="section-header"
-            style={{
-              marginBottom: "var(--space-3)",
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "space-between",
-            }}
-          >
-            <span>Crons {crons.length > 0 && `(${crons.length})`}</span>
-          </div>
-          {crons.length === 0 ? (
-            <div
-              style={{
-                fontSize: "var(--text-footnote)",
-                color: "var(--text-tertiary)",
-              }}
-            >
-              No crons associated with this agent
-            </div>
-          ) : (
-            <div
-              style={{
-                borderRadius: "var(--radius-md)",
-                overflow: "hidden",
-                border: "1px solid var(--separator)",
-              }}
-            >
-              {crons.map((c, idx) => (
-                <div
-                  key={c.id}
-                  style={{
-                    display: "flex",
-                    alignItems: "center",
-                    gap: "var(--space-2)",
-                    minHeight: 44,
-                    padding: "0 var(--space-3)",
-                    borderTop: idx > 0 ? "1px solid var(--separator)" : undefined,
-                    background:
-                      c.status === "error" ? "rgba(255,69,58,0.06)" : undefined,
-                  }}
-                >
-                  <StatusDot status={c.status} />
-                  <span
-                    style={{
-                      fontSize: "var(--text-body)",
-                      fontFamily: "var(--font-mono)",
-                      fontWeight: "var(--weight-medium)",
-                      color: "var(--text-primary)",
-                      flex: 1,
-                      overflow: "hidden",
-                      textOverflow: "ellipsis",
-                      whiteSpace: "nowrap",
-                    }}
-                  >
-                    {c.name}
-                  </span>
-                  <span
-                    style={{
-                      fontSize: "var(--text-caption1)",
-                      fontFamily: "var(--font-mono)",
-                      color: "var(--text-tertiary)",
-                      flexShrink: 0,
-                    }}
-                  >
-                    {c.schedule}
-                  </span>
-                  <span
-                    style={{
-                      fontSize: "var(--text-caption2)",
-                      fontWeight: "var(--weight-medium)",
-                      padding: "2px 8px",
-                      borderRadius: 20,
-                      flexShrink: 0,
-                      background:
-                        c.status === "ok"
-                          ? "rgba(48,209,88,0.1)"
-                          : c.status === "error"
-                            ? "rgba(255,69,58,0.1)"
-                            : "rgba(120,120,128,0.1)",
-                      color:
-                        c.status === "ok"
-                          ? "var(--system-green)"
-                          : c.status === "error"
-                            ? "var(--system-red)"
-                            : "var(--text-secondary)",
-                    }}
-                  >
-                    {c.status}
-                  </span>
-                </div>
-              ))}
-            </div>
-          )}
-          {crons.length > 0 && (
-            <div style={{ textAlign: "right", marginTop: "var(--space-3)" }}>
-              <Link
-                href="/crons"
-                className="focus-ring"
-                style={{
-                  fontSize: "var(--text-footnote)",
-                  color: "var(--system-blue)",
-                  textDecoration: "none",
-                  fontWeight: "var(--weight-medium)",
-                }}
-              >
-                View all crons &rarr;
-              </Link>
-            </div>
-          )}
-        </Card>
+        {/* ── Scheduling card (merged crons + heartbeat) ── */}
+        <SchedulingCard agentId={agent.id} crons={crons} />
 
         {/* ── Danger zone ── */}
         <Card>
